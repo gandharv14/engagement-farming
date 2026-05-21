@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 
+import { ensureAppUser } from "@/lib/app-user";
 import { auth0 } from "@/lib/auth0";
-import { AppRole, Claims, getUserRoleFromClaims } from "@/lib/roles";
+import { AppRole, Claims } from "@/lib/roles";
 
 export type AppSessionUser = Claims & {
   role: AppRole;
@@ -15,15 +16,15 @@ export async function getCurrentUser(): Promise<AppSessionUser | null> {
       return null;
     }
 
-    const role = getUserRoleFromClaims(session.user);
+    const appUser = await ensureAppUser(session.user);
 
-    if (!role) {
+    if (!appUser?.role) {
       return null;
     }
 
     return {
       ...session.user,
-      role,
+      role: appUser.role,
     };
   } catch {
     return null;

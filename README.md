@@ -5,7 +5,7 @@ Production-oriented Next.js app for a time-boxed gamification program around lon
 ## Stack
 
 - Next.js App Router, TypeScript strict mode, Tailwind CSS, shadcn/ui
-- Auth0 for login and role claims
+- Auth0 Labelbox SSO for login
 - Supabase Postgres with RLS, triggers, and Realtime-ready tables
 - lucide-react icons, recharts admin charts, framer-motion available for polish
 
@@ -26,10 +26,14 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 AUTH0_SECRET=
 AUTH0_BASE_URL=http://localhost:3000
-AUTH0_ISSUER_BASE_URL=
-AUTH0_CLIENT_ID=
+AUTH0_ISSUER_BASE_URL=https://labelbox.us.auth0.com
+AUTH0_CLIENT_ID=czniCboFUZXCkxEM0tPrEGBAAudZAucH
 AUTH0_CLIENT_SECRET=
 AUTH0_AUDIENCE=
+AUTH0_CONNECTION=
+
+DEFAULT_APP_ROLE=tasker
+APP_ADMIN_EMAILS=
 ```
 
 The app uses Auth0 routes mounted at `/api/auth/login`, `/api/auth/logout`, `/api/auth/callback`, and `/api/auth/me`.
@@ -53,14 +57,15 @@ The first migration creates:
 
 ## Auth0
 
-Follow `docs/auth0-setup.md`. The critical claims are:
+Follow `docs/auth0-setup.md`. Auth0 is used for Labelbox SSO identity, while app roles are stored in Supabase:
 
-- `https://app/role`: one of `tasker`, `reviewer`, or `admin`.
-- `role`: `authenticated`, so Supabase maps the JWT to the `authenticated` Postgres role.
+- `users.role`: one of `tasker`, `reviewer`, or `admin`.
+- `DEFAULT_APP_ROLE`: role assigned to first-time SSO users, usually `tasker`.
+- `APP_ADMIN_EMAILS`: comma-separated emails bootstrapped as admin on first login.
 
 ## Security Notes
 
-Tasker/reviewer access to economics is blocked in the database layer. Tasker UI queries use a Supabase client with the Auth0 access token in the `Authorization: Bearer <token>` header, so RLS applies even if a tasker directly queries Supabase with their JWT.
+Tasker/reviewer access to economics is blocked by server route guards. Server-side Supabase calls use `SUPABASE_SERVICE_ROLE_KEY` after `requireRole(...)` authorizes the current Auth0 session, so the app does not require custom Auth0 role claims.
 
 Run the checks in `docs/rls-verification.md` before using real sprint data.
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).

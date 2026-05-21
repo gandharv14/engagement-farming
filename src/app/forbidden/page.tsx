@@ -9,7 +9,7 @@ export default function ForbiddenPage() {
       <Card className="max-w-md">
         <CardHeader>
           <CardTitle>Access unavailable</CardTitle>
-          <CardDescription>Your Auth0 role claim does not grant access to that surface.</CardDescription>
+          <CardDescription>Your app role does not grant access to that surface.</CardDescription>
         </CardHeader>
         <CardContent className="flex gap-3">
           <Button asChild>

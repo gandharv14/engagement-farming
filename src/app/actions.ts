@@ -42,23 +42,18 @@ export async function submitRow(formData: FormData) {
 }
 
 export async function reviewRow(rowId: string, formData: FormData) {
-  await requireRole("reviewer");
+  const user = await requireRole("reviewer");
   const supabase = await createSupabaseServerClient();
+  const reviewer = await getMyUserRow(user.sub);
   const status = formString(formData, "status");
   const score = Number(formString(formData, "score"));
 
-  if (!supabase) {
+  if (!supabase || !reviewer) {
     throw new Error("Supabase is not configured.");
   }
 
   if (!["accepted_clean", "accepted_with_edits", "rejected"].includes(status)) {
     throw new Error("Invalid review status.");
-  }
-
-  const { data: reviewer } = await supabase.from("users").select("id").maybeSingle();
-
-  if (!reviewer?.id) {
-    throw new Error("Reviewer user row not found.");
   }
 
   const { error: rowError } = await supabase
@@ -90,17 +85,19 @@ export async function reviewRow(rowId: string, formData: FormData) {
 }
 
 export async function selectGoodie(achievementId: string, goodieId: string) {
-  await requireRole("tasker");
+  const user = await requireRole("tasker");
   const supabase = await createSupabaseServerClient();
+  const userRow = await getMyUserRow(user.sub);
 
-  if (!supabase) {
+  if (!supabase || !userRow) {
     throw new Error("Supabase is not configured.");
   }
 
   const { error } = await supabase
     .from("milestone_achievements")
     .update({ goodie_id: goodieId })
-    .eq("id", achievementId);
+    .eq("id", achievementId)
+    .eq("user_id", userRow.id);
 
   if (error) {
     throw new Error(error.message);

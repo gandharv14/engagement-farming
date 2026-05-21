@@ -2,13 +2,28 @@
 
 ## Application
 
-Create a Regular Web Application in Auth0 and configure:
+Use the existing Labelbox Auth0 application:
+
+```text
+https://manage.auth0.com/dashboard/us/labelbox/applications/czniCboFUZXCkxEM0tPrEGBAAudZAucH/settings
+```
+
+The app defaults to:
+
+```env
+AUTH0_ISSUER_BASE_URL=https://labelbox.us.auth0.com
+AUTH0_CLIENT_ID=czniCboFUZXCkxEM0tPrEGBAAudZAucH
+```
+
+Set `AUTH0_CLIENT_SECRET` from that Auth0 application in `.env.local` and Vercel project environment variables.
+
+Configure the Auth0 application with:
 
 - Allowed Callback URLs: `http://localhost:3000/api/auth/callback`, plus the Vercel production callback URL.
 - Allowed Logout URLs: `http://localhost:3000`, plus the production base URL.
 - Allowed Web Origins: `http://localhost:3000`, plus the production base URL.
 
-Set the app values in `.env.local` and Vercel project environment variables.
+If the Labelbox SSO connection is not the only enabled connection for the app, set `AUTH0_CONNECTION` to the Auth0 connection name to force that SSO path during login.
 
 ## API Audience
 
@@ -18,39 +33,25 @@ Set `AUTH0_AUDIENCE` to the Supabase project URL/audience configured for JWT ver
 https://<tenant>.auth0.com/.well-known/jwks.json
 ```
 
-## Role Claim Action
+## App Roles
 
-Create an Auth0 Action on the Login flow:
+Auth0 is only used for identity. App authorization comes from the Supabase `users.role` column.
 
-```js
-exports.onExecutePostLogin = async (event, api) => {
-  const allowedRoles = ["tasker", "reviewer", "admin"];
-  const candidateRoles = [
-    event.user.app_metadata?.role,
-    ...(event.authorization?.roles ?? []),
-  ];
-  const role = candidateRoles
-    .map((candidate) => (typeof candidate === "string" ? candidate.toLowerCase() : null))
-    .find((candidate) => allowedRoles.includes(candidate));
+- On first login, the callback creates or updates the Supabase `users` row for the Auth0 `sub`.
+- Existing Supabase roles are preserved.
+- New users default to `DEFAULT_APP_ROLE`, which should usually be `tasker`.
+- Emails listed in `APP_ADMIN_EMAILS` are bootstrapped as `admin` on first login.
 
-  if (!role) {
-    api.access.deny("Missing app role. Set app_metadata.role or assign an Auth0 role named tasker, reviewer, or admin.");
-    return;
-  }
-
-  api.idToken.setCustomClaim("https://app/role", role);
-  api.accessToken.setCustomClaim("https://app/role", role);
-
-  // Supabase needs this database role claim in addition to the app role claim.
-  api.accessToken.setCustomClaim("role", "authenticated");
-};
+```env
+DEFAULT_APP_ROLE=tasker
+APP_ADMIN_EMAILS=admin@example.com,another-admin@example.com
 ```
 
-Each user must have exactly one app role, either as `app_metadata.role` or as an Auth0 Dashboard role named `tasker`, `reviewer`, or `admin`.
+No Auth0 Login Action is required for app roles.
 
 ## Callback User Upsert
 
-The Next.js Auth0 callback upserts the user into Supabase with `SUPABASE_SERVICE_ROLE_KEY`. This keeps the Supabase `users` row aligned with Auth0 `sub`, email, display name, and role.
+The Next.js Auth0 callback upserts the user into Supabase with `SUPABASE_SERVICE_ROLE_KEY`. This keeps the Supabase `users` row aligned with Auth0 `sub`, email, display name, and the app-managed role.
 
 ## Route Mapping
 

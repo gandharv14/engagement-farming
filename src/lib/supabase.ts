@@ -1,10 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { auth0 } from "@/lib/auth0";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export async function createSupabaseServerClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const adminClient = createSupabaseAdminClient();
+
+  if (adminClient) {
+    return adminClient;
+  }
 
   if (!url || !anonKey) {
     return null;

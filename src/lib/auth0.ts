@@ -1,21 +1,30 @@
 import { NextResponse } from "next/server";
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
 
-import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getUserRoleFromClaims } from "@/lib/roles";
+import { ensureAppUser } from "@/lib/app-user";
 
-const auth0Domain = process.env.AUTH0_DOMAIN ?? process.env.AUTH0_ISSUER_BASE_URL?.replace(/^https?:\/\//, "").replace(/\/$/, "");
+const labelboxAuth0Domain = "labelbox.us.auth0.com";
+const labelboxAuth0ClientId = "czniCboFUZXCkxEM0tPrEGBAAudZAucH";
+const auth0Domain = process.env.AUTH0_DOMAIN ?? process.env.AUTH0_ISSUER_BASE_URL?.replace(/^https?:\/\//, "").replace(/\/$/, "") ?? labelboxAuth0Domain;
+const authorizationParameters: Record<string, string> = {
+  scope: "openid profile email",
+};
+
+if (process.env.AUTH0_AUDIENCE) {
+  authorizationParameters.audience = process.env.AUTH0_AUDIENCE;
+}
+
+if (process.env.AUTH0_CONNECTION) {
+  authorizationParameters.connection = process.env.AUTH0_CONNECTION;
+}
 
 export const auth0 = new Auth0Client({
   domain: auth0Domain,
-  clientId: process.env.AUTH0_CLIENT_ID,
+  clientId: process.env.AUTH0_CLIENT_ID ?? labelboxAuth0ClientId,
   clientSecret: process.env.AUTH0_CLIENT_SECRET,
   appBaseUrl: process.env.AUTH0_BASE_URL,
   secret: process.env.AUTH0_SECRET,
-  authorizationParameters: {
-    audience: process.env.AUTH0_AUDIENCE,
-    scope: "openid profile email offline_access",
-  },
+  authorizationParameters,
   routes: {
     login: "/api/auth/login",
     logout: "/api/auth/logout",
@@ -32,20 +41,7 @@ export const auth0 = new Auth0Client({
     }
 
     if (session?.user) {
-      const supabase = createSupabaseAdminClient();
-      const role = getUserRoleFromClaims(session.user);
-
-      if (supabase && role) {
-        await supabase.from("users").upsert(
-          {
-            auth0_sub: session.user.sub,
-            email: session.user.email ?? null,
-            display_name: session.user.name ?? session.user.nickname ?? session.user.email ?? "Tasker",
-            role,
-          },
-          { onConflict: "auth0_sub" },
-        );
-      }
+      await ensureAppUser(session.user);
     }
 
     return NextResponse.redirect(new URL(ctx.returnTo ?? "/", ctx.appBaseUrl));
