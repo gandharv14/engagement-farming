@@ -24,10 +24,17 @@ Create an Auth0 Action on the Login flow:
 
 ```js
 exports.onExecutePostLogin = async (event, api) => {
-  const role = event.user.app_metadata?.role;
+  const allowedRoles = ["tasker", "reviewer", "admin"];
+  const candidateRoles = [
+    event.user.app_metadata?.role,
+    ...(event.authorization?.roles ?? []),
+  ];
+  const role = candidateRoles
+    .map((candidate) => (typeof candidate === "string" ? candidate.toLowerCase() : null))
+    .find((candidate) => allowedRoles.includes(candidate));
 
-  if (!["tasker", "reviewer", "admin"].includes(role)) {
-    api.access.deny("Missing app_metadata.role");
+  if (!role) {
+    api.access.deny("Missing app role. Set app_metadata.role or assign an Auth0 role named tasker, reviewer, or admin.");
     return;
   }
 
@@ -39,7 +46,7 @@ exports.onExecutePostLogin = async (event, api) => {
 };
 ```
 
-Each user must have exactly one `app_metadata.role` value.
+Each user must have exactly one app role, either as `app_metadata.role` or as an Auth0 Dashboard role named `tasker`, `reviewer`, or `admin`.
 
 ## Callback User Upsert
 
