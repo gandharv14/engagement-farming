@@ -170,17 +170,9 @@ export default async function AdminConfigPage({ searchParams }: { searchParams?:
                 <FieldHelpLabel
                   htmlFor="sprintEndDate"
                   label="Sprint end date"
-                  definition="The final calendar day included in the sprint. Leave duration blank to save this date directly."
+                  definition="The final calendar day included in the sprint. The app calculates the duration from the start and end dates."
                 />
                 <Input id="sprintEndDate" name="sprintEndDate" type="date" defaultValue={sprintEndDate} required />
-              </div>
-              <div className="grid gap-2">
-                <FieldHelpLabel
-                  htmlFor="sprintDurationDays"
-                  label="Duration override, days"
-                  definition="Optional. Enter a duration to recalculate the end date from the start date. Leave blank when editing the end date directly."
-                />
-                <Input id="sprintDurationDays" name="sprintDurationDays" type="number" min="1" placeholder={`${currentDurationDays}`} />
                 <p className="text-xs text-muted-foreground">Current duration: {currentDurationDays} days.</p>
               </div>
             </div>

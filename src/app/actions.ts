@@ -11,7 +11,6 @@ import {
   getCollectiveProblemCapacity,
   getMaxProblemsPerTasker,
   getSprintDurationDays,
-  getSprintEndDateFromDuration,
   parseDateOnly,
 } from "@/lib/sprint-config";
 import { createSupabaseServerClient } from "@/lib/supabase";
@@ -176,13 +175,7 @@ export async function updateSprintConfig(formData: FormData) {
 
   try {
     const sprintStartDate = parseDateOnly(formString(formData, "sprintStartDate"), "Sprint start date");
-    const durationInput = formString(formData, "sprintDurationDays").trim();
-    let sprintEndDate = parseDateOnly(formString(formData, "sprintEndDate"), "Sprint end date");
-
-    if (durationInput) {
-      const durationDays = Number(durationInput);
-      sprintEndDate = getSprintEndDateFromDuration(sprintStartDate, durationDays);
-    }
+    const sprintEndDate = parseDateOnly(formString(formData, "sprintEndDate"), "Sprint end date");
 
     if (sprintEndDate < sprintStartDate) {
       throw new Error("Sprint end date cannot be before the start date.");
