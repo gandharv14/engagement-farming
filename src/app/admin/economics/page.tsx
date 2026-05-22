@@ -2,8 +2,8 @@ import { updateEconomics } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldHelpLabel } from "@/components/ui/field-help-label";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { requireRole } from "@/lib/auth";
@@ -34,15 +34,27 @@ export default async function AdminEconomicsPage() {
           <CardContent>
             <form action={updateEconomics} className="grid gap-4 md:max-w-xl">
               <div className="grid gap-2">
-                <Label htmlFor="budgetCents">Budget, cents</Label>
+                <FieldHelpLabel
+                  htmlFor="budgetCents"
+                  label="Budget, cents"
+                  definition="Total internal budget for this sprint, entered in cents. This feeds admin-only economics reporting and budget tracking."
+                />
                 <Input id="budgetCents" name="budgetCents" type="number" min="0" defaultValue={econ.budget_cents ?? 0} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="revenueCents">Revenue, cents</Label>
+                <FieldHelpLabel
+                  htmlFor="revenueCents"
+                  label="Revenue, cents"
+                  definition="Total program revenue, entered in cents. Gross margin is calculated from this value minus accepted earning spend."
+                />
                 <Input id="revenueCents" name="revenueCents" type="number" min="0" defaultValue={econ.revenue_cents ?? 0} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="notes">Notes</Label>
+                <FieldHelpLabel
+                  htmlFor="notes"
+                  label="Notes"
+                  definition="Private admin context for assumptions, vendor details, or economics decisions. These notes are saved with program economics."
+                />
                 <Textarea id="notes" name="notes" defaultValue={econ.notes ?? ""} />
               </div>
               <Button type="submit">Save economics</Button>

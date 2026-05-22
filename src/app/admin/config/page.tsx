@@ -2,8 +2,8 @@ import { updateSprintConfig } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldHelpLabel } from "@/components/ui/field-help-label";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase";
 
@@ -32,7 +32,11 @@ export default async function AdminConfigPage() {
         <CardContent>
           <form action={updateSprintConfig} className="grid gap-4 md:max-w-xl">
             <div className="grid gap-2">
-              <Label htmlFor="currentPhase">Current phase</Label>
+              <FieldHelpLabel
+                htmlFor="currentPhase"
+                label="Current phase"
+                definition="The active sprint phase shown to taskers. Warmup, steady, and finale can be used to communicate where the sprint is in its incentive cycle."
+              />
               <select
                 id="currentPhase"
                 name="currentPhase"
@@ -45,11 +49,19 @@ export default async function AdminConfigPage() {
               </select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="qualityMultiplier">Quality multiplier</Label>
+              <FieldHelpLabel
+                htmlFor="qualityMultiplier"
+                label="Quality multiplier"
+                definition="Multiplier displayed on the tasker dashboard for quality-based incentives. Use 1 for the normal baseline, or a higher decimal value when quality rewards are boosted."
+              />
               <Input id="qualityMultiplier" name="qualityMultiplier" type="number" step="0.1" defaultValue={sprintConfig.quality_multiplier ?? 1} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="endgameBountyAmountCents">Endgame bounty amount, cents</Label>
+              <FieldHelpLabel
+                htmlFor="endgameBountyAmountCents"
+                label="Endgame bounty amount, cents"
+                definition="Per-bounty amount for the finale incentive, entered in cents. This value is stored with sprint config and pairs with the endgame bounty active toggle."
+              />
               <Input
                 id="endgameBountyAmountCents"
                 name="endgameBountyAmountCents"
@@ -58,10 +70,22 @@ export default async function AdminConfigPage() {
                 defaultValue={sprintConfig.endgame_bounty_amount_cents ?? 0}
               />
             </div>
-            <label className="flex items-center gap-2 rounded-xl border p-3 text-sm">
-              <input name="endgameBountyActive" type="checkbox" defaultChecked={sprintConfig.endgame_bounty_active ?? false} />
-              Endgame bounty active
-            </label>
+            <div className="grid gap-2">
+              <FieldHelpLabel
+                htmlFor="endgameBountyActive"
+                label="Endgame bounty active"
+                definition="Turns on the finale bounty indicator for taskers. When enabled, the dashboard highlights that the endgame bounty is active."
+              />
+              <label className="flex items-center gap-2 rounded-xl border p-3 text-sm">
+                <input
+                  id="endgameBountyActive"
+                  name="endgameBountyActive"
+                  type="checkbox"
+                  defaultChecked={sprintConfig.endgame_bounty_active ?? false}
+                />
+                Active
+              </label>
+            </div>
             <Button type="submit">Save config</Button>
           </form>
         </CardContent>
