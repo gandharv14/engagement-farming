@@ -28,7 +28,11 @@ If the Labelbox SSO connection is not the only enabled connection for the app, s
 
 ## API Audience
 
-Set `AUTH0_AUDIENCE` to the Supabase project URL/audience configured for JWT verification. Configure Supabase JWT settings to trust the Auth0 JWKS endpoint:
+Leave `AUTH0_AUDIENCE` blank for the standard Labelbox SSO login. The app requests only `openid profile email` during the interactive Auth0 redirect because the shared Labelbox Auth0 tenant rejects API audiences that are not registered in that tenant.
+
+Only set `AUTH0_AUDIENCE` if there is an Auth0 API with exactly that identifier and you need Supabase client/realtime access tokens. Do not set it to the Supabase project URL unless the matching API exists in Auth0; otherwise Auth0 returns `access_denied: Service not found`.
+
+If you do configure an Auth0 API audience for Supabase JWT verification, configure Supabase JWT settings to trust the Auth0 JWKS endpoint:
 
 ```text
 https://<tenant>.auth0.com/.well-known/jwks.json

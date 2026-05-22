@@ -31,7 +31,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>SSO could not complete</AlertTitle>
-              <AlertDescription>Try again, or check that the Auth0 callback URL matches this deployment.</AlertDescription>
+              <AlertDescription>
+                Try again, or check the Auth0 callback URL and API audience configuration for this deployment.
+              </AlertDescription>
             </Alert>
           ) : null}
           <LoginRedirect />

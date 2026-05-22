@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { auth0 } from "@/lib/auth0";
+import { auth0, getAuth0AccessTokenOptions } from "@/lib/auth0";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export async function createSupabaseServerClient() {
@@ -16,7 +16,7 @@ export async function createSupabaseServerClient() {
     return null;
   }
 
-  const { token } = await auth0.getAccessToken();
+  const { token } = await auth0.getAccessToken(getAuth0AccessTokenOptions());
 
   return createClient(url, anonKey, {
     auth: {

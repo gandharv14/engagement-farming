@@ -10,12 +10,10 @@ const authorizationParameters: Record<string, string> = {
 };
 const appBaseUrl = getAppBaseUrl();
 
-if (process.env.AUTH0_AUDIENCE) {
-  authorizationParameters.audience = process.env.AUTH0_AUDIENCE;
-}
+const auth0Connection = getOptionalEnv("AUTH0_CONNECTION");
 
-if (process.env.AUTH0_CONNECTION) {
-  authorizationParameters.connection = process.env.AUTH0_CONNECTION;
+if (auth0Connection) {
+  authorizationParameters.connection = auth0Connection;
 }
 
 export const auth0 = new Auth0Client({
@@ -45,6 +43,12 @@ export const auth0 = new Auth0Client({
     return NextResponse.redirect(new URL(ctx.returnTo ?? "/", ctx.appBaseUrl));
   },
 });
+
+export function getAuth0AccessTokenOptions() {
+  const audience = getOptionalEnv("AUTH0_AUDIENCE");
+
+  return audience ? { audience } : undefined;
+}
 
 function getAppBaseUrl() {
   const configuredBaseUrl = process.env.APP_BASE_URL ?? process.env.AUTH0_BASE_URL;
@@ -79,4 +83,10 @@ function getBaseUrlWithProtocol(value: string) {
   }
 
   return `https://${value}`;
+}
+
+function getOptionalEnv(name: string) {
+  const value = process.env[name]?.trim();
+
+  return value || undefined;
 }

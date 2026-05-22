@@ -37,6 +37,7 @@ APP_ADMIN_EMAILS=
 
 The app uses Auth0 routes mounted at `/api/auth/login`, `/api/auth/logout`, `/api/auth/callback`, and `/api/auth/me`.
 Use `APP_BASE_URL` for a fixed local or production origin. `AUTH0_BASE_URL` is still accepted for older env files, but the deployed Vercel app should not use a localhost value.
+Leave `AUTH0_AUDIENCE` blank unless that exact API audience is registered in Auth0; it is used only for Supabase access-token requests, not for the Labelbox SSO login redirect.
 
 ## Supabase Migrations
 
