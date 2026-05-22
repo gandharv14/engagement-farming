@@ -37,7 +37,7 @@ export default async function Home() {
                 <Badge variant="outline">{data.config.quality_multiplier}x quality multiplier</Badge>
                 {data.config.endgame_bounty_active ? <Badge variant="destructive">Finale bounty active</Badge> : null}
               </div>
-              <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Live Coding Sprint</p>
+              <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Live Token Sprint</p>
               <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">Keep your streak online.</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
                 Queue a clean row, defend your cadence, and push the arena toward{" "}

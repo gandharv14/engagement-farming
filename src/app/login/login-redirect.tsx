@@ -17,7 +17,7 @@ export function LoginRedirect() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Continue to Labelbox SSO to access Sprint Arcade.</p>
+      <p className="text-sm text-muted-foreground">Continue to Labelbox SSO to access Tokenmaxxing.</p>
       <Button asChild>
         <a href={loginHref} onClick={markRedirecting} target="_top" aria-busy={isRedirecting || undefined}>
           {isRedirecting ? <Spinner className="mr-2 h-4 w-4" /> : <LogIn className="mr-2 h-4 w-4" />}

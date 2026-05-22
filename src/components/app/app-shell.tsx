@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Flame, Gamepad2, Gift, LayoutDashboard, LogOut, Medal, ShieldCheck, Users } from "lucide-react";
 
 import { exitAdminGameMode } from "@/app/admin/game-mode/actions";
+import { GameRulesDialog } from "@/components/app/game-rules-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -67,17 +68,18 @@ export function AppShell({
     <div className="arena-bg relative min-h-screen overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-arena-cyan/70 to-transparent" />
       <header className="sticky top-0 z-20 border-b border-arena-cyan/20 bg-background/78 shadow-[0_0_48px_oklch(0.79_0.18_205/0.08)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href={homeHref} className="flex items-center gap-2">
             <div className="arena-glow flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-arena-cyan via-arena-blue to-arena-pink text-primary-foreground">
               <Flame className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-semibold leading-none tracking-wide text-foreground">Sprint Arcade</p>
-              <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-arena-cyan">Code Arena</p>
+              <p className="text-sm font-semibold leading-none tracking-wide text-foreground">Tokenmaxxing</p>
+              <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-arena-cyan">Token Arena</p>
             </div>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+            <GameRulesDialog />
             <Badge variant="secondary" className="border-arena-purple/40 bg-arena-purple/15 text-arena-cyan capitalize">
               {role}
             </Badge>
@@ -85,8 +87,8 @@ export function AppShell({
             <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{name}</span>
             <Button asChild variant="ghost" size="sm" className="hover:bg-arena-pink/10 hover:text-arena-pink">
               <a href="/api/auth/logout">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
+                <LogOut className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Sign out</span>
               </a>
             </Button>
           </div>

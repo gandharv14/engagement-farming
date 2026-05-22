@@ -8,6 +8,7 @@ import {
   hasSupabaseAdminEnv,
   seedAcceptedRowsForTasker,
 } from "./support/db";
+import { dismissRulesModal } from "./support/rules";
 
 test.describe("Goodie selection and fulfillment", () => {
   test.skip(!hasStorageState("admin"), "Missing e2e/.auth/admin.json. See docs/e2e-testing.md.");
@@ -25,6 +26,7 @@ test.describe("Goodie selection and fulfillment", () => {
     const taskerContext = await browser.newContext({ storageState: storageStatePath("tasker") });
     const taskerPage = await taskerContext.newPage();
     await taskerPage.goto("/goodies");
+    await dismissRulesModal(taskerPage);
     await expect(taskerPage.getByRole("heading", { name: "Goodie Catalog" })).toBeVisible();
     await expect(taskerPage.getByText(goodie.name)).toBeVisible();
     await taskerPage.getByRole("button", { name: `Select ${goodie.name}` }).click();
@@ -34,6 +36,7 @@ test.describe("Goodie selection and fulfillment", () => {
     const adminContext = await browser.newContext({ storageState: storageStatePath("admin") });
     const adminPage = await adminContext.newPage();
     await adminPage.goto("/admin/goodies");
+    await dismissRulesModal(adminPage);
     const fulfillmentRow = adminPage.getByRole("row", { name: new RegExp(goodie.name) });
     await expect(fulfillmentRow).toBeVisible();
     await fulfillmentRow.getByRole("button", { name: "Mark fulfilled" }).click();

@@ -1,4 +1,4 @@
-# Sprint Arcade
+# Tokenmaxxing
 
 Production-oriented Next.js app for a time-boxed gamification program around long-horizon labeling rows.
 

@@ -7,6 +7,7 @@ import {
   hasSupabaseAdminEnv,
   seedPendingRowForTasker,
 } from "./support/db";
+import { dismissRulesModal } from "./support/rules";
 
 test.describe("tasker surfaces", () => {
   test.skip(!hasStorageState("tasker"), "Missing e2e/.auth/tasker.json. See docs/e2e-testing.md.");
@@ -14,21 +15,27 @@ test.describe("tasker surfaces", () => {
 
   test("renders the main tasker pages", async ({ page }) => {
     await page.goto("/");
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Keep your streak warm." })).toBeVisible();
 
     await page.goto("/leaderboards");
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Public Leaderboards" })).toBeVisible();
 
     await page.goto("/guild");
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Guild Room" })).toBeVisible();
 
     await page.goto("/goodies");
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Goodie Catalog" })).toBeVisible();
 
     await page.goto("/earnings");
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Your Earnings Ledger" })).toBeVisible();
 
     await page.goto("/profile");
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
   });
 
@@ -41,6 +48,7 @@ test.describe("tasker surfaces", () => {
       await cleanupByPrefix(prefix);
 
       await page.goto("/");
+      await dismissRulesModal(page);
       await page.getByLabel("External row ID").fill(`${prefix}-row`);
       await page.getByLabel("Task type").fill("e2e");
       await page.getByLabel("Token count").fill("3210");
@@ -64,11 +72,13 @@ test.describe("reviewer flow", () => {
     await seedPendingRowForTasker(getE2EEmail("tasker")!, prefix);
 
     await page.goto("/review/queue");
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
     const queuedRow = page.getByRole("row", { name: /e2e.*4,242/ });
     await expect(queuedRow).toBeVisible();
     await queuedRow.getByRole("link", { name: "Open" }).click();
 
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Review Row" })).toBeVisible();
     await page.getByLabel("Reviewer score").fill("5");
     await page.getByLabel("Optional notes").fill("E2E clean pass");

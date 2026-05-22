@@ -16,7 +16,7 @@ AUTH0_CLIENT_ID=czniCboFUZXCkxEM0tPrEGBAAudZAucH
 ```
 
 Set `AUTH0_CLIENT_SECRET` from that Auth0 application in `.env.local` and Vercel project environment variables. `AUTH0_ISSUER_BASE_URL` and `AUTH0_CLIENT_ID` are no longer required by the app.
-Set `APP_BASE_URL` to `http://localhost:3000` locally and to the production origin on Vercel, such as `https://engagement-farming.vercel.app`. If `APP_BASE_URL` is omitted on Vercel, the SDK can infer the request origin; do not deploy a localhost `AUTH0_BASE_URL`.
+Set `APP_BASE_URL` to `http://localhost:3000` locally and to the production origin on Vercel, such as `https://tokenmaxxing.vercel.app`. If `APP_BASE_URL` is omitted on Vercel, the SDK can infer the request origin; do not deploy a localhost `AUTH0_BASE_URL`.
 
 Configure the Auth0 application with:
 

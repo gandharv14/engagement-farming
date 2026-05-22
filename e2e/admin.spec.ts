@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { hasStorageState, storageStatePath } from "./support/auth";
 import { cleanupByPrefix, getE2EEmail, getUserByEmail, hasSupabaseAdminEnv } from "./support/db";
+import { dismissRulesModal } from "./support/rules";
 
 test.describe("admin Guilds", () => {
   test.skip(!hasStorageState("admin"), "Missing e2e/.auth/admin.json. See docs/e2e-testing.md.");
@@ -20,6 +21,7 @@ test.describe("admin Guilds", () => {
     await cleanupByPrefix(prefix);
 
     await page.goto("/admin/guilds");
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Guilds" })).toBeVisible();
 
     await page.getByLabel("Guild name").fill(guildName);
@@ -38,6 +40,7 @@ test.describe("admin Guilds", () => {
     const taskerContext = await browser.newContext({ storageState: storageStatePath("tasker") });
     const taskerPage = await taskerContext.newPage();
     await taskerPage.goto("/guild");
+    await dismissRulesModal(taskerPage);
     await expect(taskerPage.getByRole("heading", { name: "Guild Room" })).toBeVisible();
     await expect(taskerPage.getByText(renamedGuildName)).toBeVisible();
     await taskerContext.close();
@@ -66,6 +69,7 @@ test.describe("admin Goodies", () => {
     await cleanupByPrefix(prefix);
 
     await page.goto("/admin/goodies");
+    await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Goodies" })).toBeVisible();
 
     await page.locator("#new-tier").selectOption("Tier 1");
@@ -74,16 +78,20 @@ test.describe("admin Goodies", () => {
     await page.locator("#new-description").fill("Created from Playwright");
     await page.locator("#new-vendor").fill("E2E vendor");
     await page.getByRole("button", { name: "Create goodie" }).click();
-    await expect(page.getByDisplayValue(goodieName)).toBeVisible();
+    const goodieForm = page.locator("form").filter({ has: page.getByRole("button", { name: `Save ${goodieName}` }) });
+    const goodieNameInput = goodieForm.locator('input[name="name"]');
+    await expect(goodieNameInput).toHaveValue(goodieName);
 
     const taskerContext = await browser.newContext({ storageState: storageStatePath("tasker") });
     const taskerPage = await taskerContext.newPage();
     await taskerPage.goto("/goodies");
+    await dismissRulesModal(taskerPage);
     await expect(taskerPage.getByText(goodieName)).toBeVisible();
 
-    await page.getByDisplayValue(goodieName).fill(renamedGoodieName);
+    await goodieNameInput.fill(renamedGoodieName);
     await page.getByRole("button", { name: `Save ${goodieName}` }).click();
-    await expect(page.getByDisplayValue(renamedGoodieName)).toBeVisible();
+    const renamedGoodieForm = page.locator("form").filter({ has: page.getByRole("button", { name: `Save ${renamedGoodieName}` }) });
+    await expect(renamedGoodieForm.locator('input[name="name"]')).toHaveValue(renamedGoodieName);
     await taskerPage.reload();
     await expect(taskerPage.getByText(renamedGoodieName)).toBeVisible();
 

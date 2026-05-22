@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sprint Arcade",
-  description: "Gamified long-horizon labeling sprint dashboard",
+  title: "Tokenmaxxing",
+  description: "Gamified token-maxxing sprint dashboard",
 };
 
 export default function RootLayout({
