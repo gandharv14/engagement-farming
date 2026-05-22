@@ -30,6 +30,7 @@ export default async function AdminEconomicsPage() {
       <div className="space-y-6">
         <Card>
           <CardHeader>
+            <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-gold">Economy Console</p>
             <CardTitle>Program Economics</CardTitle>
             <CardDescription>Admin-only budget and revenue controls.</CardDescription>
           </CardHeader>
@@ -65,6 +66,7 @@ export default async function AdminEconomicsPage() {
         </Card>
         <Card>
           <CardHeader>
+            <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-gold">Private Loot Costs</p>
             <CardTitle>Goodie Internal Costs</CardTitle>
             <CardDescription>Never readable by taskers or reviewers. Edit costs from the Goodies admin page.</CardDescription>
           </CardHeader>

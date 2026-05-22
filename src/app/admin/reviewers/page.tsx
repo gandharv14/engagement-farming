@@ -22,6 +22,7 @@ export default async function AdminReviewersPage() {
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
       <Card>
         <CardHeader>
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-pink">Review Squad</p>
           <CardTitle>Reviewers</CardTitle>
           <CardDescription>Throughput and score spread for review operations.</CardDescription>
         </CardHeader>

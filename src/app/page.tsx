@@ -23,7 +23,8 @@ export default async function Home() {
     <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "rows" }, { table: "earnings" }, { table: "streaks" }]} />
       <div className="space-y-6">
-        <section className="rounded-3xl border bg-card p-6">
+        <section className="arena-panel relative overflow-hidden rounded-3xl p-6">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-arena-cyan via-arena-blue to-arena-pink" />
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -36,16 +37,18 @@ export default async function Home() {
                 <Badge variant="outline">{data.config.quality_multiplier}x quality multiplier</Badge>
                 {data.config.endgame_bounty_active ? <Badge variant="destructive">Finale bounty active</Badge> : null}
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight">Keep your streak warm.</h1>
+              <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Live Coding Sprint</p>
+              <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">Keep your streak online.</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Long-horizon rows take time. Today counts if you get a submission in, and accepted work keeps the sprint
-                moving toward {data.config.collective_goal_rows.toLocaleString()} rows.
+                Queue a clean row, defend your cadence, and push the arena toward{" "}
+                <span className="font-mono text-arena-gold">{data.config.collective_goal_rows.toLocaleString()}</span>{" "}
+                accepted long-horizon rows.
               </p>
             </div>
-            <div className="rounded-2xl bg-muted p-4 text-center">
-              <Flame className="mx-auto h-8 w-8 text-primary" />
-              <p className="mt-2 text-3xl font-semibold">{data.currentStreak}</p>
-              <p className="text-xs text-muted-foreground">day streak</p>
+            <div className="arena-glow rounded-3xl border border-arena-gold/30 bg-arena-gold/10 p-5 text-center">
+              <Flame className="mx-auto h-8 w-8 text-arena-gold" />
+              <p className="arena-metric mt-2 text-5xl font-semibold text-arena-gold">{data.currentStreak}</p>
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">day streak</p>
             </div>
           </div>
         </section>
@@ -84,7 +87,7 @@ export default async function Home() {
                 </p>
               )}
 
-              <form action={submitRow} className="grid gap-3 rounded-xl border p-4 md:grid-cols-3">
+              <form action={submitRow} className="grid gap-3 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="externalRowId">External row ID</Label>
                   <Input id="externalRowId" name="externalRowId" placeholder="Optional" />
@@ -97,7 +100,7 @@ export default async function Home() {
                   <Label htmlFor="tokenCount">Token count</Label>
                   <Input id="tokenCount" name="tokenCount" type="number" min="0" placeholder="1000000" />
                 </div>
-                <Button className="md:col-span-3" type="submit">
+                <Button className="md:col-span-3" size="lg" type="submit">
                   <Target className="mr-2 h-4 w-4" />
                   Record submitted row
                 </Button>
@@ -111,7 +114,7 @@ export default async function Home() {
               <CardDescription>Only your own ledger is visible.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-semibold">{formatCurrency(data.totalEarnedCents)}</p>
+              <p className="arena-metric text-4xl font-semibold text-arena-gold">{formatCurrency(data.totalEarnedCents)}</p>
               <div className="mt-4 space-y-2">
                 {Object.entries(data.sourceBreakdown).length ? (
                   Object.entries(data.sourceBreakdown).map(([source, cents]) => (

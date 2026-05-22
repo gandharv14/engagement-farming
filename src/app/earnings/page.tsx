@@ -15,13 +15,14 @@ export default async function EarningsPage() {
     <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "earnings" }]} />
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Your Earnings Ledger</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-gold">Private Score</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Your Earnings Ledger</h1>
           <p className="mt-2 text-sm text-muted-foreground">No comparisons, percentiles, or other taskers&apos; payouts.</p>
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>{formatCurrency(data.totalCents)}</CardTitle>
+            <CardTitle className="arena-metric text-4xl text-arena-gold">{formatCurrency(data.totalCents)}</CardTitle>
             <CardDescription>Total awarded to you</CardDescription>
           </CardHeader>
           <CardContent>

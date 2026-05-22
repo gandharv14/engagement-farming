@@ -53,8 +53,9 @@ export default async function AdminGuildsPage() {
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Guilds</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-purple">Team Builder</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Guilds</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Create teams, reassign taskers, and keep the tasker-facing Guild page current.
           </p>

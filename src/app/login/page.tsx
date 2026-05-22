@@ -25,12 +25,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const hasSsoError = Array.isArray(error) ? error.includes("sso") : error === "sso";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-6">
+    <main className="arena-bg flex min-h-screen items-center justify-center bg-background p-6">
       <Card className="max-w-md">
         <CardHeader>
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <div className="arena-glow mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-arena-cyan via-arena-blue to-arena-pink text-primary-foreground">
             <Flame className="h-5 w-5" />
           </div>
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Enter Arena</p>
           <CardTitle>Sign in to Sprint Arcade</CardTitle>
           <CardDescription>Use your Labelbox SSO account through Auth0.</CardDescription>
         </CardHeader>

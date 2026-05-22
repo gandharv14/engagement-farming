@@ -20,12 +20,17 @@ function LeaderboardCard({ title, entries }: { title: string; entries: Leaderboa
       <CardContent className="space-y-3">
         {entries.length ? (
           entries.map((entry) => (
-            <div key={`${title}-${entry.rank}`} className="flex items-center justify-between rounded-xl border p-3">
+            <div
+              key={`${title}-${entry.rank}`}
+              className="arena-rank-row flex items-center justify-between rounded-2xl p-3"
+            >
               <div className="flex items-center gap-3">
-                <Badge variant={entry.rank === 1 ? "default" : "secondary"}>#{entry.rank}</Badge>
+                <Badge variant={entry.rank === 1 ? "default" : "secondary"} className={entry.rank === 1 ? "text-background" : undefined}>
+                  #{entry.rank}
+                </Badge>
                 <span className="font-medium">{entry.display_name}</span>
               </div>
-              <span className="text-sm text-muted-foreground">{entry.metric}</span>
+              <span className="font-mono text-sm text-arena-cyan">{entry.metric}</span>
             </div>
           ))
         ) : (
@@ -46,8 +51,9 @@ export default async function LeaderboardsPage() {
     <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "rows" }, { table: "streaks" }]} />
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Public Leaderboards</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Ranked Match</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Public Leaderboards</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Celebrate the front of the pack without exposing private economics or bottom rankings.
           </p>

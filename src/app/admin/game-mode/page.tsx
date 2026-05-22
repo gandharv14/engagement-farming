@@ -26,8 +26,9 @@ export default async function AdminGameModePage() {
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Admin Game Mode</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-purple">Simulator</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Admin Game Mode</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Enter tasker-facing gameplay while keeping your admin session and operations access.
           </p>
@@ -42,8 +43,8 @@ export default async function AdminGameModePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {status ? (
-              <div className="rounded-xl border p-4 text-sm">
-                <p className="font-medium">{displayName(status.target)}</p>
+              <div className="rounded-2xl border border-arena-purple/25 bg-arena-purple/10 p-4 text-sm">
+                <p className="font-mono font-medium">{displayName(status.target)}</p>
                 <p className="mt-1 text-muted-foreground">
                   {status.mode === "own" ? "Your admin-owned game profile" : "Existing tasker impersonation"}
                 </p>

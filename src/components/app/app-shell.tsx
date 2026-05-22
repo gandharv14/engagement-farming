@@ -64,25 +64,26 @@ export function AppShell({
   const homeHref = activeNavigationRole === "admin" ? "/admin" : activeNavigationRole === "reviewer" ? "/review/queue" : "/";
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
+    <div className="arena-bg relative min-h-screen overflow-hidden bg-background">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-arena-cyan/70 to-transparent" />
+      <header className="sticky top-0 z-20 border-b border-arena-cyan/20 bg-background/78 shadow-[0_0_48px_oklch(0.79_0.18_205/0.08)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link href={homeHref} className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <div className="arena-glow flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-arena-cyan via-arena-blue to-arena-pink text-primary-foreground">
               <Flame className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-semibold leading-none">Sprint Arcade</p>
-              <p className="text-xs text-muted-foreground">Long-horizon labeling</p>
+              <p className="text-sm font-semibold leading-none tracking-wide text-foreground">Sprint Arcade</p>
+              <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-arena-cyan">Code Arena</p>
             </div>
           </Link>
           <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="capitalize">
+            <Badge variant="secondary" className="border-arena-purple/40 bg-arena-purple/15 text-arena-cyan capitalize">
               {role}
             </Badge>
-            {gameMode ? <Badge>Game mode</Badge> : null}
-            <span className="hidden text-sm text-muted-foreground sm:inline">{name}</span>
-            <Button asChild variant="ghost" size="sm">
+            {gameMode ? <Badge className="bg-arena-gold text-background">Game mode</Badge> : null}
+            <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{name}</span>
+            <Button asChild variant="ghost" size="sm" className="hover:bg-arena-pink/10 hover:text-arena-pink">
               <a href="/api/auth/logout">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign out
@@ -92,10 +93,10 @@ export function AppShell({
         </div>
       </header>
       {gameMode ? (
-        <div className="border-b bg-muted/40">
+        <div className="border-b border-arena-gold/25 bg-arena-gold/10">
           <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
-              <span className="font-medium">Admin game mode:</span>{" "}
+              <span className="font-mono text-xs font-medium uppercase tracking-[0.22em] text-arena-gold">Admin game mode:</span>{" "}
               <span className="text-muted-foreground">
                 {gameMode.label} as {gameMode.targetName}
               </span>
@@ -113,14 +114,19 @@ export function AppShell({
           </div>
         </div>
       ) : null}
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[220px_1fr]">
+      <div className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[220px_1fr]">
         <aside className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
-          <nav className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
+          <nav className="arena-panel flex gap-2 overflow-x-auto rounded-2xl p-2 pb-2 lg:flex-col lg:overflow-visible">
             {linksForRole(activeNavigationRole).map((link) => {
               const Icon = link.icon;
 
               return (
-                <Button key={link.href} asChild variant="ghost" className="justify-start">
+                <Button
+                  key={link.href}
+                  asChild
+                  variant="ghost"
+                  className="justify-start border border-transparent text-muted-foreground hover:border-arena-cyan/35 hover:bg-arena-cyan/10 hover:text-foreground"
+                >
                   <Link href={link.href}>
                     <Icon className="mr-2 h-4 w-4" />
                     {link.label}
@@ -129,10 +135,13 @@ export function AppShell({
               );
             })}
           </nav>
-          <Separator className="my-4 hidden lg:block" />
-          <p className="hidden text-xs text-muted-foreground lg:block">
-            Public surfaces show momentum, not private economics. Admin-only spend data stays behind RLS.
-          </p>
+          <Separator className="my-4 hidden bg-arena-cyan/20 lg:block" />
+          <div className="hidden rounded-2xl border border-arena-purple/20 bg-arena-purple/10 p-3 lg:block">
+            <p className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-arena-purple">Arena Rule</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Public surfaces show momentum, not private economics. Admin-only spend data stays behind RLS.
+            </p>
+          </div>
         </aside>
         <main className="min-w-0">{children}</main>
       </div>

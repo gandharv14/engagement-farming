@@ -21,8 +21,9 @@ export default async function ReviewQueuePage() {
     <AppShell role={user.role} name={user.name ?? user.email ?? "Reviewer"}>
       <RealtimeRefresh subscriptions={[{ table: "rows", filter: "status=eq.pending_review" }]} />
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Review Queue</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Moderator Console</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Review Queue</h1>
           <p className="mt-2 text-sm text-muted-foreground">FIFO pending rows. Reviewer notes stay off tasker surfaces.</p>
         </div>
         <Card>

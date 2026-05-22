@@ -17,8 +17,9 @@ export default async function GuildPage() {
     <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "rows" }, { table: "guild_memberships" }]} />
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Guild Room</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-purple">Team Queue</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Guild Room</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Guilds compete on accepted rows. The winning team celebrates together.
           </p>
@@ -35,7 +36,7 @@ export default async function GuildPage() {
             <CardContent className="space-y-2">
               {data.roster.length ? (
                 data.roster.map((member) => (
-                  <div key={member} className="rounded-xl border p-3 text-sm">
+                  <div key={member} className="rounded-2xl border border-arena-purple/25 bg-arena-purple/10 p-3 font-mono text-sm">
                     {member}
                   </div>
                 ))
@@ -56,12 +57,14 @@ export default async function GuildPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {data.standings.map((guild) => (
-                <div key={guild.name} className="flex items-center justify-between rounded-xl border p-3">
+                <div key={guild.name} className="arena-rank-row flex items-center justify-between rounded-2xl p-3">
                   <div className="flex items-center gap-3">
-                    <Badge variant={guild.rank === 1 ? "default" : "secondary"}>#{guild.rank}</Badge>
+                    <Badge variant={guild.rank === 1 ? "default" : "secondary"} className={guild.rank === 1 ? "text-background" : undefined}>
+                      #{guild.rank}
+                    </Badge>
                     <span className="font-medium">{guild.name}</span>
                   </div>
-                  <span className="text-sm text-muted-foreground">{guild.accepted_rows} accepted</span>
+                  <span className="font-mono text-sm text-arena-cyan">{guild.accepted_rows} accepted</span>
                 </div>
               ))}
             </CardContent>

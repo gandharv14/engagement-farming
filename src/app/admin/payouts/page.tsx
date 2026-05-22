@@ -14,6 +14,7 @@ export default async function AdminPayoutsPage() {
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
       <Card>
         <CardHeader>
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-gold">Finance Drop</p>
           <CardTitle>Payout Export</CardTitle>
           <CardDescription>CSV grouped by user for finance. Admin-only.</CardDescription>
         </CardHeader>

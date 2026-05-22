@@ -94,8 +94,9 @@ export default async function AdminGoodiesPage() {
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Goodies</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-gold">Loot Ops</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Goodies</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Manage the tasker catalog, private cost fields, and fulfillment status for selected milestone rewards.
           </p>
@@ -162,7 +163,11 @@ export default async function AdminGoodiesPage() {
                   const internal = internalByGoodieId.get(goodie.id);
 
                   return (
-                    <form key={goodie.id} action={updateGoodie.bind(null, goodie.id)} className="rounded-xl border p-4">
+                    <form
+                      key={goodie.id}
+                      action={updateGoodie.bind(null, goodie.id)}
+                      className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4"
+                    >
                       <div className="grid gap-4 lg:grid-cols-3">
                         <div className="grid gap-2">
                           <Label htmlFor={`tier-${goodie.id}`}>Tier</Label>

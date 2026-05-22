@@ -24,8 +24,9 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Reviewer"}>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Review Row</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Score Check</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Review Row</h1>
           <p className="mt-2 text-sm text-muted-foreground">Score the row. Bonus logic runs in Postgres on status change.</p>
         </div>
         <Card>
@@ -34,17 +35,17 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
             <CardDescription>{row.id}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border p-3">
+            <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
               <p className="text-xs text-muted-foreground">Submitted</p>
-              <p className="text-sm">{new Date(row.submitted_at).toLocaleString()}</p>
+              <p className="font-mono text-sm">{new Date(row.submitted_at).toLocaleString()}</p>
             </div>
-            <div className="rounded-xl border p-3">
+            <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
               <p className="text-xs text-muted-foreground">Task type</p>
-              <p className="text-sm">{String(row.metadata.task_type ?? "long-horizon")}</p>
+              <p className="font-mono text-sm">{String(row.metadata.task_type ?? "long-horizon")}</p>
             </div>
-            <div className="rounded-xl border p-3">
+            <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
               <p className="text-xs text-muted-foreground">Token count</p>
-              <p className="text-sm">{Number(row.metadata.token_count ?? 0).toLocaleString()}</p>
+              <p className="font-mono text-sm text-arena-cyan">{Number(row.metadata.token_count ?? 0).toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>

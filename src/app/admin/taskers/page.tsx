@@ -27,6 +27,7 @@ export default async function AdminTaskersPage() {
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
       <Card>
         <CardHeader>
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-pink">Roster Intel</p>
           <CardTitle>Taskers</CardTitle>
           <CardDescription>Admin-only per-tasker cost and acceptance visibility.</CardDescription>
         </CardHeader>

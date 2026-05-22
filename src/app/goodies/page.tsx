@@ -20,8 +20,9 @@ export default async function GoodiesPage() {
     <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "milestone_achievements" }, { table: "goodies" }]} />
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Goodie Catalog</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-gold">Loot Unlocks</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Goodie Catalog</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Unlock one selection per tier. Item costs stay admin-only.
           </p>
@@ -35,7 +36,7 @@ export default async function GoodiesPage() {
           return (
             <section key={milestone.id} className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">{milestone.tier_label}</h2>
+                <h2 className="font-mono text-xl font-semibold text-arena-cyan">{milestone.tier_label}</h2>
                 <Badge variant={unlocked ? "default" : "secondary"}>
                   {unlocked ? "Unlocked" : `Unlock at row #${milestone.threshold_rows}`}
                 </Badge>
@@ -46,13 +47,13 @@ export default async function GoodiesPage() {
                     const selected = achievement?.goodie_id === goodie.id;
 
                     return (
-                      <Card key={goodie.id} className={!unlocked ? "opacity-60" : undefined}>
+                      <Card key={goodie.id} className={!unlocked ? "opacity-60 grayscale" : undefined}>
                         <CardHeader>
-                          <div className="mb-3 flex h-36 items-center justify-center overflow-hidden rounded-xl bg-muted">
+                          <div className="mb-3 flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-arena-cyan/15 bg-arena-cyan/5">
                             {goodie.image_url ? (
                               <Image src={goodie.image_url} alt="" width={320} height={180} className="h-full w-full object-cover" />
                             ) : (
-                              <Gift className="h-10 w-10 text-muted-foreground" />
+                              <Gift className="h-10 w-10 text-arena-gold" />
                             )}
                           </div>
                           <CardTitle>{goodie.name}</CardTitle>

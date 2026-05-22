@@ -13,13 +13,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        default:
+          "bg-gradient-to-r from-arena-cyan via-arena-blue to-arena-pink text-primary-foreground shadow-lg shadow-arena-cyan/20 hover:brightness-110 [a]:hover:brightness-110",
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-arena-cyan/30 bg-background/40 text-foreground hover:border-arena-cyan/60 hover:bg-arena-cyan/10 hover:text-arena-cyan aria-expanded:bg-arena-cyan/10 aria-expanded:text-arena-cyan dark:border-arena-cyan/30 dark:bg-input/30 dark:hover:bg-arena-cyan/10",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "border border-arena-purple/25 bg-secondary text-secondary-foreground hover:bg-arena-purple/20 hover:text-foreground aria-expanded:bg-arena-purple/20 aria-expanded:text-foreground",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "hover:bg-arena-cyan/10 hover:text-arena-cyan aria-expanded:bg-arena-cyan/10 aria-expanded:text-arena-cyan dark:hover:bg-arena-cyan/10",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",

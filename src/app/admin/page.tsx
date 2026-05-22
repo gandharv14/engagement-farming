@@ -18,8 +18,9 @@ export default async function AdminPage() {
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Program Operations</h1>
+        <div className="arena-panel rounded-3xl p-5">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-pink">Admin Control</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Program Operations</h1>
           <p className="mt-2 text-sm text-muted-foreground">Admin-only economics, spend, margin, and full-labeler visibility.</p>
         </div>
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -29,17 +30,17 @@ export default async function AdminPage() {
           <StatCard title="Gross margin" value={`${data.grossMarginPercent}%`} helper="Revenue less awarded COGS" icon={Gauge} />
         </section>
         <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border bg-card p-4">
+          <div className="arena-panel rounded-2xl p-4">
             <div className="mb-2 flex justify-between text-sm">
               <span>Goal progress</span>
-              <span>{goalProgress}%</span>
+              <span className="font-mono text-arena-cyan">{goalProgress}%</span>
             </div>
             <Progress value={goalProgress} />
           </div>
-          <div className="rounded-xl border bg-card p-4">
+          <div className="arena-panel rounded-2xl p-4">
             <div className="mb-2 flex justify-between text-sm">
               <span>Budget consumed</span>
-              <span>{budgetProgress}%</span>
+              <span className="font-mono text-arena-gold">{budgetProgress}%</span>
             </div>
             <Progress value={budgetProgress} />
           </div>

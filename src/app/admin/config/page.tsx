@@ -26,6 +26,7 @@ export default async function AdminConfigPage() {
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
       <Card>
         <CardHeader>
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-pink">Sprint Tuning</p>
           <CardTitle>Sprint Config</CardTitle>
           <CardDescription>Admin-managed incentives and phase controls.</CardDescription>
         </CardHeader>
@@ -76,7 +77,7 @@ export default async function AdminConfigPage() {
                 label="Endgame bounty active"
                 definition="Turns on the finale bounty indicator for taskers. When enabled, the dashboard highlights that the endgame bounty is active."
               />
-              <label className="flex items-center gap-2 rounded-xl border p-3 text-sm">
+              <label className="flex items-center gap-2 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3 text-sm">
                 <input
                   id="endgameBountyActive"
                   name="endgameBountyActive"
