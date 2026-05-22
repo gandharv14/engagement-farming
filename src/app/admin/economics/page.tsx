@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { updateEconomics } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
@@ -64,9 +66,12 @@ export default async function AdminEconomicsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Goodie Internal Costs</CardTitle>
-            <CardDescription>Never readable by taskers or reviewers.</CardDescription>
+            <CardDescription>Never readable by taskers or reviewers. Edit costs from the Goodies admin page.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <Button asChild variant="secondary">
+              <Link href="/admin/goodies">Manage Goodies</Link>
+            </Button>
             <Table>
               <TableHeader>
                 <TableRow>

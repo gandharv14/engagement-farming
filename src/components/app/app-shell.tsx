@@ -27,6 +27,7 @@ const adminLinks = [
   { href: "/admin/reviewers", label: "Reviewers", icon: ShieldCheck },
   { href: "/admin/config", label: "Config", icon: Flame },
   { href: "/admin/economics", label: "Economics", icon: Medal },
+  { href: "/admin/goodies", label: "Goodies", icon: Gift },
   { href: "/admin/guilds", label: "Guilds", icon: Users },
   { href: "/admin/payouts", label: "Payouts", icon: Gift },
 ];

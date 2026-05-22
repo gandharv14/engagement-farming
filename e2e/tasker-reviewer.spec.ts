@@ -1,0 +1,80 @@
+import { expect, test } from "@playwright/test";
+
+import { hasStorageState, storageStatePath } from "./support/auth";
+import {
+  cleanupByPrefix,
+  getE2EEmail,
+  hasSupabaseAdminEnv,
+  seedPendingRowForTasker,
+} from "./support/db";
+
+test.describe("tasker surfaces", () => {
+  test.skip(!hasStorageState("tasker"), "Missing e2e/.auth/tasker.json. See docs/e2e-testing.md.");
+  test.use({ storageState: storageStatePath("tasker") });
+
+  test("renders the main tasker pages", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Keep your streak warm." })).toBeVisible();
+
+    await page.goto("/leaderboards");
+    await expect(page.getByRole("heading", { name: "Public Leaderboards" })).toBeVisible();
+
+    await page.goto("/guild");
+    await expect(page.getByRole("heading", { name: "Guild Room" })).toBeVisible();
+
+    await page.goto("/goodies");
+    await expect(page.getByRole("heading", { name: "Goodie Catalog" })).toBeVisible();
+
+    await page.goto("/earnings");
+    await expect(page.getByRole("heading", { name: "Your Earnings Ledger" })).toBeVisible();
+
+    await page.goto("/profile");
+    await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
+  });
+
+  test.describe("submission flow", () => {
+    test.skip(!hasSupabaseAdminEnv(), "Missing Supabase service-role env for e2e cleanup.");
+    test.skip(!getE2EEmail("tasker"), "Missing E2E_TASKER_EMAIL.");
+
+    test("records a submitted row", async ({ page }, testInfo) => {
+      const prefix = `e2e-submit-${testInfo.workerIndex}-${Date.now()}`;
+      await cleanupByPrefix(prefix);
+
+      await page.goto("/");
+      await page.getByLabel("External row ID").fill(`${prefix}-row`);
+      await page.getByLabel("Task type").fill("e2e");
+      await page.getByLabel("Token count").fill("3210");
+      await page.getByRole("button", { name: "Record submitted row" }).click();
+      await expect(page.getByText("You have a submission logged today.")).toBeVisible();
+
+      await cleanupByPrefix(prefix);
+    });
+  });
+});
+
+test.describe("reviewer flow", () => {
+  test.skip(!hasStorageState("reviewer"), "Missing e2e/.auth/reviewer.json. See docs/e2e-testing.md.");
+  test.skip(!hasSupabaseAdminEnv(), "Missing Supabase service-role env for e2e seed/cleanup.");
+  test.skip(!getE2EEmail("tasker"), "Missing E2E_TASKER_EMAIL.");
+  test.use({ storageState: storageStatePath("reviewer") });
+
+  test("opens and reviews a queued row", async ({ page }, testInfo) => {
+    const prefix = `e2e-review-${testInfo.workerIndex}-${Date.now()}`;
+    await cleanupByPrefix(prefix);
+    await seedPendingRowForTasker(getE2EEmail("tasker")!, prefix);
+
+    await page.goto("/review/queue");
+    await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
+    const queuedRow = page.getByRole("row", { name: /e2e.*4,242/ });
+    await expect(queuedRow).toBeVisible();
+    await queuedRow.getByRole("link", { name: "Open" }).click();
+
+    await expect(page.getByRole("heading", { name: "Review Row" })).toBeVisible();
+    await page.getByLabel("Reviewer score").fill("5");
+    await page.getByLabel("Optional notes").fill("E2E clean pass");
+    await page.getByRole("button", { name: "Clean Pass" }).click();
+    await expect(page).toHaveURL(/\/review\/queue/);
+
+    await cleanupByPrefix(prefix);
+  });
+});

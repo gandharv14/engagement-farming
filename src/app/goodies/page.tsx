@@ -63,7 +63,7 @@ export default async function GoodiesPage() {
                             <Badge>On the way</Badge>
                           ) : unlocked && achievement ? (
                             <form action={selectGoodie.bind(null, achievement.id, goodie.id)}>
-                              <Button type="submit" className="w-full">
+                              <Button type="submit" className="w-full" aria-label={`Select ${goodie.name}`}>
                                 Select this goodie
                               </Button>
                             </form>

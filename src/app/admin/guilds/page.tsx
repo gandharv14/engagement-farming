@@ -1,53 +1,208 @@
 import { AppShell } from "@/components/app/app-shell";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase";
+import { assignGuildMember, createGuild, deleteGuild, removeGuildMember, renameGuild } from "./actions";
 
 export const dynamic = "force-dynamic";
+
+type GuildRow = {
+  id: string;
+  name: string;
+};
+
+type TaskerRow = {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+};
+
+type MembershipRow = {
+  user_id: string;
+  guild_id: string;
+  users?: TaskerRow | TaskerRow[] | null;
+};
+
+function firstRelation<T>(value: T | T[] | null | undefined) {
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+}
+
+function displayName(user?: Pick<TaskerRow, "display_name" | "email"> | null) {
+  return user?.display_name ?? user?.email ?? "Tasker";
+}
 
 export default async function AdminGuildsPage() {
   const user = await requireRole("admin");
   const supabase = await createSupabaseServerClient();
-  const [{ data: guilds }, { data: memberships }] = supabase
+  const [{ data: guilds }, { data: memberships }, { data: taskers }] = supabase
     ? await Promise.all([
         supabase.from("guilds").select("*").order("name"),
-        supabase.from("guild_memberships").select("guild_id, users(display_name, email)"),
+        supabase.from("guild_memberships").select("user_id, guild_id, users(id, display_name, email)").order("guild_id"),
+        supabase.from("users").select("id, display_name, email").eq("role", "tasker").order("display_name"),
       ])
-    : [{ data: [] }, { data: [] }];
-  const membershipRows = (memberships ?? []) as { guild_id: string; users?: { display_name?: string; email?: string } }[];
+    : [{ data: [] }, { data: [] }, { data: [] }];
+  const guildRows = (guilds ?? []) as GuildRow[];
+  const membershipRows = (memberships ?? []) as unknown as MembershipRow[];
+  const taskerRows = (taskers ?? []) as TaskerRow[];
+  const assignedTaskerIds = new Set(membershipRows.map((membership) => membership.user_id));
 
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Guilds</CardTitle>
-          <CardDescription>Create and reassign guilds from Supabase or add admin actions here.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Guild</TableHead>
-                <TableHead>Members</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {((guilds ?? []) as { id: string; name: string }[]).map((guild) => (
-                <TableRow key={guild.id}>
-                  <TableCell>{guild.name}</TableCell>
-                  <TableCell>
-                    {membershipRows
-                      .filter((membership) => membership.guild_id === guild.id)
-                      .map((membership) => membership.users?.display_name ?? membership.users?.email ?? "Tasker")
-                      .join(", ") || "No members yet"}
-                  </TableCell>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Guilds</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Create teams, reassign taskers, and keep the tasker-facing Guild page current.
+          </p>
+        </div>
+
+        <section className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+          <Card>
+            <CardHeader>
+              <CardTitle>Create Guild</CardTitle>
+              <CardDescription>Guild names are visible to all roles.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={createGuild} className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Guild name</Label>
+                  <Input id="name" name="name" placeholder="Night Owls" required />
+                </div>
+                <Button type="submit" className="w-full">
+                  Create guild
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Assign Tasker</CardTitle>
+              <CardDescription>Assigning a tasker moves them out of any previous guild.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={assignGuildMember} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                <div className="grid gap-2">
+                  <Label htmlFor="userId">Tasker</Label>
+                  <select
+                    id="userId"
+                    name="userId"
+                    className="h-10 rounded-md border bg-background px-3 text-sm"
+                    required
+                    disabled={!taskerRows.length}
+                  >
+                    <option value="">Choose a tasker</option>
+                    {taskerRows.map((tasker) => (
+                      <option key={tasker.id} value={tasker.id}>
+                        {displayName(tasker)}
+                        {assignedTaskerIds.has(tasker.id) ? " (assigned)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="guildId">Guild</Label>
+                  <select
+                    id="guildId"
+                    name="guildId"
+                    className="h-10 rounded-md border bg-background px-3 text-sm"
+                    required
+                    disabled={!guildRows.length}
+                  >
+                    <option value="">Choose a guild</option>
+                    {guildRows.map((guild) => (
+                      <option key={guild.id} value={guild.id}>
+                        {guild.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button type="submit" disabled={!guildRows.length || !taskerRows.length}>
+                  Assign
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </section>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Guild Roster</CardTitle>
+            <CardDescription>Rename guilds, remove members, or delete empty teams.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Guild</TableHead>
+                  <TableHead>Members</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {guildRows.length ? (
+                  guildRows.map((guild) => {
+                    const guildMemberships = membershipRows.filter((membership) => membership.guild_id === guild.id);
+
+                    return (
+                      <TableRow key={guild.id}>
+                        <TableCell className="min-w-64 align-top">
+                          <form action={renameGuild.bind(null, guild.id)} className="flex gap-2">
+                            <Input aria-label={`Name for ${guild.name}`} name="name" defaultValue={guild.name} required />
+                            <Button type="submit" variant="secondary" size="sm" aria-label={`Save ${guild.name}`}>
+                              Save
+                            </Button>
+                          </form>
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <div className="space-y-2">
+                            {guildMemberships.length ? (
+                              guildMemberships.map((membership) => (
+                                <div key={membership.user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2">
+                                  <span>{displayName(firstRelation(membership.users))}</span>
+                                  <form action={removeGuildMember.bind(null, membership.user_id, guild.id)}>
+                                    <Button
+                                      type="submit"
+                                      variant="outline"
+                                      size="sm"
+                                      aria-label={`Remove ${displayName(firstRelation(membership.users))} from ${guild.name}`}
+                                    >
+                                      Remove
+                                    </Button>
+                                  </form>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No members yet</p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="align-top text-right">
+                          <form action={deleteGuild.bind(null, guild.id)}>
+                            <Button type="submit" variant="destructive" size="sm" aria-label={`Delete ${guild.name}`}>
+                              Delete
+                            </Button>
+                          </form>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                      No guilds yet. Create one to start drafting teams.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
     </AppShell>
   );
 }
