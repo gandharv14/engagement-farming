@@ -291,7 +291,7 @@ export async function getGoodies(auth0Sub: string) {
       milestones: [
         { id: 1, threshold_rows: 5, tier_label: "Tier 1" },
         { id: 2, threshold_rows: 10, tier_label: "Tier 2" },
-        { id: 3, threshold_rows: 25, tier_label: "Tier 3" },
+        { id: 3, threshold_rows: 24, tier_label: "Tier 3" },
       ],
     };
   }

@@ -5,6 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FieldHelpLabel } from "@/components/ui/field-help-label";
 import { Input } from "@/components/ui/input";
 import { requireRole } from "@/lib/auth";
+import {
+  MAX_PROBLEMS_PER_TASKER_PER_DAY,
+  TOKENS_PER_PROBLEM,
+  getCollectiveProblemCapacity,
+  getMaxProblemsPerTasker,
+} from "@/lib/sprint-config";
 import { createSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +43,10 @@ export default async function AdminConfigPage() {
   const { data: config } = supabase
     ? await supabase.from("sprint_config").select("*").eq("id", 1).maybeSingle()
     : { data: null };
+  const { data: milestones } = supabase ? await supabase.from("milestones").select("*").order("id") : { data: null };
+  const { count: taskerCount } = supabase
+    ? await supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "tasker").is("admin_game_owner_id", null)
+    : { count: 0 };
   const sprintConfig = (config ?? {}) as {
     current_phase?: string;
     quality_multiplier?: number;
@@ -44,12 +54,24 @@ export default async function AdminConfigPage() {
     endgame_bounty_amount_cents?: number;
     sprint_start_date?: string;
     sprint_end_date?: string;
+    collective_goal_rows?: number;
+    collective_stretch_rows?: number;
   };
+  const milestoneList = (milestones ?? []) as { id: number; threshold_rows: number; tier_label: string }[];
+  const milestoneById = new Map(milestoneList.map((milestone) => [milestone.id, milestone]));
   const fallbackStartDate = formatDateInput(new Date());
   const fallbackEndDate = formatDateInput(addDays(new Date(`${fallbackStartDate}T00:00:00.000Z`), 11));
   const sprintStartDate = sprintConfig.sprint_start_date ?? fallbackStartDate;
   const sprintEndDate = sprintConfig.sprint_end_date ?? fallbackEndDate;
   const currentDurationDays = sprintDurationDays(sprintStartDate, sprintEndDate);
+  const realTaskerCount = taskerCount ?? 0;
+  const maxProblemsPerTasker = getMaxProblemsPerTasker(currentDurationDays);
+  const collectiveCapacity = getCollectiveProblemCapacity(currentDurationDays, realTaskerCount);
+  const perTaskerTokens = maxProblemsPerTasker * TOKENS_PER_PROBLEM;
+  const collectiveGoalRows = sprintConfig.collective_goal_rows ?? 1000;
+  const collectiveStretchRows = sprintConfig.collective_stretch_rows ?? 2000;
+  const requiredGoalTaskers = Math.ceil(collectiveGoalRows / (currentDurationDays * MAX_PROBLEMS_PER_TASKER_PER_DAY));
+  const requiredStretchTaskers = Math.ceil(collectiveStretchRows / (currentDurationDays * MAX_PROBLEMS_PER_TASKER_PER_DAY));
 
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
@@ -60,7 +82,41 @@ export default async function AdminConfigPage() {
           <CardDescription>Admin-managed incentives and phase controls.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={updateSprintConfig} className="grid gap-4 md:max-w-xl">
+          <form action={updateSprintConfig} className="grid gap-6 md:max-w-3xl">
+            <div className="grid gap-4 rounded-2xl border border-arena-gold/25 bg-arena-gold/10 p-4">
+              <div>
+                <p className="font-mono text-xs uppercase tracking-[0.22em] text-arena-gold">Fixed Game Rules</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  One tasker can submit at most {MAX_PROBLEMS_PER_TASKER_PER_DAY} problems per day. Each problem is{" "}
+                  {TOKENS_PER_PROBLEM.toLocaleString()} tokens.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
+                  <p className="text-xs text-muted-foreground">Real taskers</p>
+                  <p className="font-mono text-2xl text-arena-cyan">{realTaskerCount.toLocaleString()}</p>
+                </div>
+                <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
+                  <p className="text-xs text-muted-foreground">Max per tasker this sprint</p>
+                  <p className="font-mono text-2xl text-arena-cyan">{maxProblemsPerTasker.toLocaleString()} problems</p>
+                  <p className="text-xs text-muted-foreground">{perTaskerTokens.toLocaleString()} tokens</p>
+                </div>
+                <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
+                  <p className="text-xs text-muted-foreground">Roster capacity</p>
+                  <p className="font-mono text-2xl text-arena-cyan">{collectiveCapacity.toLocaleString()} problems</p>
+                </div>
+                <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
+                  <p className="text-xs text-muted-foreground">Taskers needed now</p>
+                  <p className="font-mono text-2xl text-arena-cyan">{requiredGoalTaskers.toLocaleString()} goal</p>
+                  <p className="text-xs text-muted-foreground">{requiredStretchTaskers.toLocaleString()} for stretch</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Save is blocked if a collective target exceeds roster capacity, or if a goodie tier requires more rows than one person can
+                complete during the sprint.
+              </p>
+            </div>
+
             <div className="grid gap-4 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4">
               <div className="grid gap-2">
                 <FieldHelpLabel
@@ -88,6 +144,104 @@ export default async function AdminConfigPage() {
                 <p className="text-xs text-muted-foreground">Current duration: {currentDurationDays} days.</p>
               </div>
             </div>
+
+            <div className="grid gap-4 rounded-2xl border border-arena-purple/20 bg-arena-purple/10 p-4">
+              <div>
+                <p className="font-mono text-xs uppercase tracking-[0.22em] text-arena-purple">Collective Challenge</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Goals must fit the current tasker roster, sprint length, and {MAX_PROBLEMS_PER_TASKER_PER_DAY}-problem daily cap.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <FieldHelpLabel
+                    htmlFor="collectiveGoalRows"
+                    label="Collective goal rows"
+                    definition="Primary accepted-problem target for the whole sprint. It cannot exceed the roster's maximum possible output."
+                  />
+                  <Input
+                    id="collectiveGoalRows"
+                    name="collectiveGoalRows"
+                    type="number"
+                    min="1"
+                    defaultValue={collectiveGoalRows}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <FieldHelpLabel
+                    htmlFor="collectiveStretchRows"
+                    label="Collective stretch rows"
+                    definition="Stretch accepted-problem target. It must be at least the main goal and still fit roster capacity."
+                  />
+                  <Input
+                    id="collectiveStretchRows"
+                    name="collectiveStretchRows"
+                    type="number"
+                    min="1"
+                    defaultValue={collectiveStretchRows}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 rounded-2xl border border-arena-gold/25 bg-arena-gold/10 p-4">
+              <div>
+                <p className="font-mono text-xs uppercase tracking-[0.22em] text-arena-gold">Goodie Milestones</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Each tier must be reachable by one player. With the current duration, the maximum is {maxProblemsPerTasker} accepted rows.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-2">
+                  <FieldHelpLabel
+                    htmlFor="tier1ThresholdRows"
+                    label="Tier 1 threshold"
+                    definition="Accepted rows required to unlock the first goodie tier."
+                  />
+                  <Input
+                    id="tier1ThresholdRows"
+                    name="tier1ThresholdRows"
+                    type="number"
+                    min="1"
+                    defaultValue={milestoneById.get(1)?.threshold_rows ?? 5}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <FieldHelpLabel
+                    htmlFor="tier2ThresholdRows"
+                    label="Tier 2 threshold"
+                    definition="Accepted rows required to unlock the second goodie tier."
+                  />
+                  <Input
+                    id="tier2ThresholdRows"
+                    name="tier2ThresholdRows"
+                    type="number"
+                    min="1"
+                    defaultValue={milestoneById.get(2)?.threshold_rows ?? 10}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <FieldHelpLabel
+                    htmlFor="tier3ThresholdRows"
+                    label="Tier 3 threshold"
+                    definition="Accepted rows required to unlock the final goodie tier. A 12-day sprint caps one player at 24 rows."
+                  />
+                  <Input
+                    id="tier3ThresholdRows"
+                    name="tier3ThresholdRows"
+                    type="number"
+                    min="1"
+                    defaultValue={milestoneById.get(3)?.threshold_rows ?? 24}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid gap-2">
               <FieldHelpLabel
                 htmlFor="currentPhase"
