@@ -1,5 +1,6 @@
 import { updateSprintConfig } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldHelpLabel } from "@/components/ui/field-help-label";
@@ -14,6 +15,12 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+
+type AdminConfigSearchParams = {
+  saved?: string;
+  warning?: string | string[];
+  error?: string;
+};
 
 function formatDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -37,8 +44,9 @@ function sprintDurationDays(startDate: string, endDate: string) {
   return Math.floor(durationMs / 86_400_000) + 1;
 }
 
-export default async function AdminConfigPage() {
+export default async function AdminConfigPage({ searchParams }: { searchParams?: Promise<AdminConfigSearchParams> }) {
   const user = await requireRole("admin");
+  const resolvedSearchParams = (await searchParams) ?? {};
   const supabase = await createSupabaseServerClient();
   const { data: config } = supabase
     ? await supabase.from("sprint_config").select("*").eq("id", 1).maybeSingle()
@@ -72,6 +80,11 @@ export default async function AdminConfigPage() {
   const collectiveStretchRows = sprintConfig.collective_stretch_rows ?? 2000;
   const requiredGoalTaskers = Math.ceil(collectiveGoalRows / (currentDurationDays * MAX_PROBLEMS_PER_TASKER_PER_DAY));
   const requiredStretchTaskers = Math.ceil(collectiveStretchRows / (currentDurationDays * MAX_PROBLEMS_PER_TASKER_PER_DAY));
+  const warnings = Array.isArray(resolvedSearchParams.warning)
+    ? resolvedSearchParams.warning
+    : resolvedSearchParams.warning
+      ? [resolvedSearchParams.warning]
+      : [];
 
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
@@ -82,7 +95,35 @@ export default async function AdminConfigPage() {
           <CardDescription>Admin-managed incentives and phase controls.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={updateSprintConfig} className="grid gap-6 md:max-w-3xl">
+          <div className="grid gap-4 md:max-w-3xl">
+            {resolvedSearchParams.error ? (
+              <Alert variant="destructive">
+                <AlertTitle>Config was not saved</AlertTitle>
+                <AlertDescription>{resolvedSearchParams.error}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {resolvedSearchParams.saved && warnings.length === 0 ? (
+              <Alert>
+                <AlertTitle>Config saved</AlertTitle>
+                <AlertDescription>The current sprint settings were saved successfully.</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {resolvedSearchParams.saved && warnings.length > 0 ? (
+              <Alert>
+                <AlertTitle>Config saved with warnings</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc space-y-1 pl-5">
+                    {warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
+            <form action={updateSprintConfig} className="grid gap-6">
             <div className="grid gap-4 rounded-2xl border border-arena-gold/25 bg-arena-gold/10 p-4">
               <div>
                 <p className="font-mono text-xs uppercase tracking-[0.22em] text-arena-gold">Fixed Game Rules</p>
@@ -112,8 +153,7 @@ export default async function AdminConfigPage() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Save is blocked if a collective target exceeds roster capacity, or if a goodie tier requires more rows than one person can
-                complete during the sprint.
+                Impossible targets are saved with warnings so admins can stage draft rules, recruit more taskers, or adjust the sprint later.
               </p>
             </div>
 
@@ -149,7 +189,7 @@ export default async function AdminConfigPage() {
               <div>
                 <p className="font-mono text-xs uppercase tracking-[0.22em] text-arena-purple">Collective Challenge</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Goals must fit the current tasker roster, sprint length, and {MAX_PROBLEMS_PER_TASKER_PER_DAY}-problem daily cap.
+                  Goals are checked against the current tasker roster, sprint length, and {MAX_PROBLEMS_PER_TASKER_PER_DAY}-problem daily cap.
                 </p>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -157,7 +197,7 @@ export default async function AdminConfigPage() {
                   <FieldHelpLabel
                     htmlFor="collectiveGoalRows"
                     label="Collective goal rows"
-                    definition="Primary accepted-problem target for the whole sprint. It cannot exceed the roster's maximum possible output."
+                    definition="Primary accepted-problem target for the whole sprint. The app warns if it exceeds the roster's maximum possible output."
                   />
                   <Input
                     id="collectiveGoalRows"
@@ -172,7 +212,7 @@ export default async function AdminConfigPage() {
                   <FieldHelpLabel
                     htmlFor="collectiveStretchRows"
                     label="Collective stretch rows"
-                    definition="Stretch accepted-problem target. It must be at least the main goal and still fit roster capacity."
+                    definition="Stretch accepted-problem target. The app warns if it exceeds roster capacity."
                   />
                   <Input
                     id="collectiveStretchRows"
@@ -190,7 +230,8 @@ export default async function AdminConfigPage() {
               <div>
                 <p className="font-mono text-xs uppercase tracking-[0.22em] text-arena-gold">Goodie Milestones</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Each tier must be reachable by one player. With the current duration, the maximum is {maxProblemsPerTasker} accepted rows.
+                  The app warns when a tier is unreachable by one player. With the current duration, the maximum is {maxProblemsPerTasker} accepted
+                  rows.
                 </p>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
@@ -299,6 +340,7 @@ export default async function AdminConfigPage() {
             </div>
             <Button type="submit">Save config</Button>
           </form>
+          </div>
         </CardContent>
       </Card>
     </AppShell>

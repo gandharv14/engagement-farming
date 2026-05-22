@@ -51,6 +51,25 @@ function parseNonNegativeIntegerInput(value: string, label: string) {
   return numberValue;
 }
 
+function sprintConfigRedirectUrl(params: { saved?: boolean; warnings?: string[]; error?: string }) {
+  const searchParams = new URLSearchParams();
+
+  if (params.saved) {
+    searchParams.set("saved", "1");
+  }
+
+  params.warnings?.forEach((warning) => {
+    searchParams.append("warning", warning);
+  });
+
+  if (params.error) {
+    searchParams.set("error", params.error);
+  }
+
+  const queryString = searchParams.toString();
+  return queryString ? `/admin/config?${queryString}` : "/admin/config";
+}
+
 export async function submitRow(formData: FormData) {
   const context = await requireTaskerGameContext();
   const supabase = await createSupabaseServerClient();
@@ -150,86 +169,105 @@ export async function updateSprintConfig(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
-    throw new Error("Supabase is not configured.");
+    redirect(sprintConfigRedirectUrl({ error: "Supabase is not configured." }));
   }
 
-  const sprintStartDate = parseDateOnly(formString(formData, "sprintStartDate"), "Sprint start date");
-  const durationInput = formString(formData, "sprintDurationDays").trim();
-  let sprintEndDate = parseDateOnly(formString(formData, "sprintEndDate"), "Sprint end date");
+  let redirectUrl = "/admin/config";
 
-  if (durationInput) {
-    const durationDays = Number(durationInput);
-    sprintEndDate = getSprintEndDateFromDuration(sprintStartDate, durationDays);
-  }
+  try {
+    const sprintStartDate = parseDateOnly(formString(formData, "sprintStartDate"), "Sprint start date");
+    const durationInput = formString(formData, "sprintDurationDays").trim();
+    let sprintEndDate = parseDateOnly(formString(formData, "sprintEndDate"), "Sprint end date");
 
-  if (sprintEndDate < sprintStartDate) {
-    throw new Error("Sprint end date cannot be before the start date.");
-  }
-
-  const sprintDurationDays = getSprintDurationDays(sprintStartDate, sprintEndDate);
-  const currentPhase = formString(formData, "currentPhase");
-  const qualityMultiplier = parseNonNegativeNumberInput(formString(formData, "qualityMultiplier") || "1", "Quality multiplier");
-  const endgameBountyAmountCents = parseNonNegativeIntegerInput(
-    formString(formData, "endgameBountyAmountCents") || "0",
-    "Endgame bounty amount",
-  );
-  const collectiveGoalRows = parsePositiveIntegerInput(formString(formData, "collectiveGoalRows"), "Collective goal rows");
-  const collectiveStretchRows = parsePositiveIntegerInput(formString(formData, "collectiveStretchRows"), "Collective stretch rows");
-  const milestoneRows = [
-    { id: 1, threshold_rows: parsePositiveIntegerInput(formString(formData, "tier1ThresholdRows"), "Tier 1 threshold"), tier_label: "Tier 1" },
-    { id: 2, threshold_rows: parsePositiveIntegerInput(formString(formData, "tier2ThresholdRows"), "Tier 2 threshold"), tier_label: "Tier 2" },
-    { id: 3, threshold_rows: parsePositiveIntegerInput(formString(formData, "tier3ThresholdRows"), "Tier 3 threshold"), tier_label: "Tier 3" },
-  ];
-
-  if (!["warmup", "steady", "finale"].includes(currentPhase)) {
-    throw new Error("Current phase must be warmup, steady, or finale.");
-  }
-
-  if (collectiveStretchRows < collectiveGoalRows) {
-    throw new Error("Collective stretch rows cannot be lower than the collective goal rows.");
-  }
-
-  for (let index = 1; index < milestoneRows.length; index += 1) {
-    if (milestoneRows[index].threshold_rows <= milestoneRows[index - 1].threshold_rows) {
-      throw new Error("Goodie milestone thresholds must increase from Tier 1 through Tier 3.");
+    if (durationInput) {
+      const durationDays = Number(durationInput);
+      sprintEndDate = getSprintEndDateFromDuration(sprintStartDate, durationDays);
     }
-  }
 
-  const { count: taskerCount, error: taskerCountError } = await supabase
-    .from("users")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "tasker")
-    .is("admin_game_owner_id", null);
+    if (sprintEndDate < sprintStartDate) {
+      throw new Error("Sprint end date cannot be before the start date.");
+    }
 
-  if (taskerCountError) {
-    throw new Error(taskerCountError.message);
-  }
+    const sprintDurationDays = getSprintDurationDays(sprintStartDate, sprintEndDate);
+    const currentPhase = formString(formData, "currentPhase");
+    const qualityMultiplier = parseNonNegativeNumberInput(formString(formData, "qualityMultiplier") || "1", "Quality multiplier");
+    const endgameBountyAmountCents = parseNonNegativeIntegerInput(
+      formString(formData, "endgameBountyAmountCents") || "0",
+      "Endgame bounty amount",
+    );
+    const collectiveGoalRows = parsePositiveIntegerInput(formString(formData, "collectiveGoalRows"), "Collective goal rows");
+    const collectiveStretchRows = parsePositiveIntegerInput(formString(formData, "collectiveStretchRows"), "Collective stretch rows");
+    const milestoneRows = [
+      {
+        id: 1,
+        threshold_rows: parsePositiveIntegerInput(formString(formData, "tier1ThresholdRows"), "Tier 1 threshold"),
+        tier_label: "Tier 1",
+      },
+      {
+        id: 2,
+        threshold_rows: parsePositiveIntegerInput(formString(formData, "tier2ThresholdRows"), "Tier 2 threshold"),
+        tier_label: "Tier 2",
+      },
+      {
+        id: 3,
+        threshold_rows: parsePositiveIntegerInput(formString(formData, "tier3ThresholdRows"), "Tier 3 threshold"),
+        tier_label: "Tier 3",
+      },
+    ];
 
-  const realTaskerCount = taskerCount ?? 0;
-  const maxProblemsPerTasker = getMaxProblemsPerTasker(sprintDurationDays);
-  const collectiveCapacity = getCollectiveProblemCapacity(sprintDurationDays, realTaskerCount);
+    if (!["warmup", "steady", "finale"].includes(currentPhase)) {
+      throw new Error("Current phase must be warmup, steady, or finale.");
+    }
 
-  if (realTaskerCount < 1) {
-    throw new Error("At least one tasker is required before saving a feasible sprint challenge.");
-  }
+    const warnings: string[] = [];
 
-  if (collectiveGoalRows > collectiveCapacity) {
-    throw new Error(`Collective goal rows cannot exceed ${collectiveCapacity} for ${realTaskerCount} taskers over ${sprintDurationDays} days.`);
-  }
+    if (collectiveStretchRows < collectiveGoalRows) {
+      throw new Error("Collective stretch rows cannot be lower than the collective goal rows.");
+    }
 
-  if (collectiveStretchRows > collectiveCapacity) {
-    throw new Error(`Collective stretch rows cannot exceed ${collectiveCapacity} for ${realTaskerCount} taskers over ${sprintDurationDays} days.`);
-  }
+    for (let index = 1; index < milestoneRows.length; index += 1) {
+      if (milestoneRows[index].threshold_rows <= milestoneRows[index - 1].threshold_rows) {
+        warnings.push("Goodie milestone thresholds do not increase from Tier 1 through Tier 3.");
+      }
+    }
 
-  const impossibleMilestone = milestoneRows.find((milestone) => milestone.threshold_rows > maxProblemsPerTasker);
+    if (new Set(milestoneRows.map((milestone) => milestone.threshold_rows)).size !== milestoneRows.length) {
+      throw new Error("Goodie milestone thresholds must be unique.");
+    }
 
-  if (impossibleMilestone) {
-    throw new Error(`${impossibleMilestone.tier_label} cannot exceed ${maxProblemsPerTasker} rows for a ${sprintDurationDays}-day sprint.`);
-  }
+    const { count: taskerCount, error: taskerCountError } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "tasker")
+      .is("admin_game_owner_id", null);
 
-  const { error } = await supabase
-    .from("sprint_config")
-    .upsert({
+    if (taskerCountError) {
+      throw new Error(taskerCountError.message);
+    }
+
+    const realTaskerCount = taskerCount ?? 0;
+    const maxProblemsPerTasker = getMaxProblemsPerTasker(sprintDurationDays);
+    const collectiveCapacity = getCollectiveProblemCapacity(sprintDurationDays, realTaskerCount);
+
+    if (realTaskerCount < 1) {
+      warnings.push("No real taskers are currently rostered, so any collective challenge is impossible until taskers are added.");
+    }
+
+    if (collectiveGoalRows > collectiveCapacity) {
+      warnings.push(`Collective goal rows exceed the current capacity of ${collectiveCapacity} for ${realTaskerCount} taskers over ${sprintDurationDays} days.`);
+    }
+
+    if (collectiveStretchRows > collectiveCapacity) {
+      warnings.push(`Collective stretch rows exceed the current capacity of ${collectiveCapacity} for ${realTaskerCount} taskers over ${sprintDurationDays} days.`);
+    }
+
+    const impossibleMilestones = milestoneRows.filter((milestone) => milestone.threshold_rows > maxProblemsPerTasker);
+
+    impossibleMilestones.forEach((milestone) => {
+      warnings.push(`${milestone.tier_label} requires ${milestone.threshold_rows} rows, but one player can complete at most ${maxProblemsPerTasker} in this sprint.`);
+    });
+
+    const { error } = await supabase.from("sprint_config").upsert({
       id: 1,
       sprint_start_date: formatDateOnly(sprintStartDate),
       sprint_end_date: formatDateOnly(sprintEndDate),
@@ -241,19 +279,28 @@ export async function updateSprintConfig(formData: FormData) {
       collective_stretch_rows: collectiveStretchRows,
     });
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const { error: milestoneError } = await supabase.from("milestones").upsert(milestoneRows);
+
+    if (milestoneError) {
+      throw new Error(milestoneError.message);
+    }
+
+    revalidatePath("/");
+    revalidatePath("/goodies");
+    revalidatePath("/admin/config");
+
+    redirectUrl = sprintConfigRedirectUrl({ saved: true, warnings });
+  } catch (error) {
+    redirectUrl = sprintConfigRedirectUrl({
+      error: error instanceof Error ? error.message : "Sprint config could not be saved.",
+    });
   }
 
-  const { error: milestoneError } = await supabase.from("milestones").upsert(milestoneRows);
-
-  if (milestoneError) {
-    throw new Error(milestoneError.message);
-  }
-
-  revalidatePath("/");
-  revalidatePath("/goodies");
-  revalidatePath("/admin/config");
+  redirect(redirectUrl);
 }
 
 export async function updateEconomics(formData: FormData) {
