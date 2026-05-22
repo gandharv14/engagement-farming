@@ -37,6 +37,7 @@ export type TaskerDashboardData = {
   submittedToday: boolean;
   submissionsToday: number;
   maxDailySubmissions: number;
+  submittedRowSummaries: SubmittedRowSummary[];
   pendingRowSummaries: PendingRowSummary[];
   nextMilestone: {
     threshold: number;
@@ -59,6 +60,11 @@ export type PendingRowSummary = {
   problemId: string;
   taskType: string;
   tokenCount: number;
+};
+
+export type SubmittedRowSummary = PendingRowSummary & {
+  status: string;
+  taigaProblemUrl: string | null;
 };
 
 export type LeaderboardEntry = {
@@ -139,6 +145,13 @@ const fallbackMilestones = [
 
 type SupabaseServerClient = NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>;
 
+type TaskerDashboardRow = {
+  id: string;
+  status: string;
+  submitted_at: string;
+  metadata: Record<string, unknown>;
+};
+
 type StreakSnapshot = {
   current_streak_days: number;
   longest_streak_days: number;
@@ -187,6 +200,22 @@ function rowTaskType(row: { metadata: Record<string, unknown> }) {
 
 function rowTokenCount(row: { metadata: Record<string, unknown> }) {
   return Number(row.metadata.token_count ?? 0);
+}
+
+function rowTaigaProblemUrl(row: { metadata: Record<string, unknown> }) {
+  return typeof row.metadata.taiga_problem_url === "string" && row.metadata.taiga_problem_url ? row.metadata.taiga_problem_url : null;
+}
+
+function buildSubmittedRowSummary(row: TaskerDashboardRow): SubmittedRowSummary {
+  return {
+    id: row.id,
+    submitted_at: row.submitted_at,
+    status: row.status,
+    problemId: rowProblemId(row),
+    taskType: rowTaskType(row),
+    tokenCount: rowTokenCount(row),
+    taigaProblemUrl: rowTaigaProblemUrl(row),
+  };
 }
 
 function buildMilestoneRoadmap(milestones: { threshold_rows: number; tier_label: string }[], acceptedRows: number): MilestoneRoadmapItem[] {
@@ -320,6 +349,17 @@ export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashbo
       submittedToday: false,
       submissionsToday: 0,
       maxDailySubmissions: MAX_PROBLEMS_PER_TASKER_PER_DAY,
+      submittedRowSummaries: [
+        {
+          id: "local-preview-row",
+          submitted_at: new Date().toISOString(),
+          status: "pending_review",
+          problemId: "local-preview-row",
+          taskType: "Debugging",
+          tokenCount: 3210,
+          taigaProblemUrl: "https://taiga.example.com/project/live-compare/us/local-preview-row",
+        },
+      ],
       pendingRowSummaries: [],
       nextMilestone: { threshold: 5, tierLabel: "Tier 1", progress: 80 },
     };
@@ -327,14 +367,14 @@ export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashbo
 
   const [{ data: rows }, { data: streak }, { data: achievements }, { data: earnings }, { data: milestones }] =
     await Promise.all([
-      supabase.from("rows").select("id, status, submitted_at, metadata").eq("tasker_id", user.id),
+      supabase.from("rows").select("id, status, submitted_at, metadata").eq("tasker_id", user.id).order("submitted_at", { ascending: false }),
       supabase.from("streaks").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("milestone_achievements").select("id").eq("user_id", user.id),
       supabase.from("earnings").select("source, amount_cents").eq("user_id", user.id),
       supabase.from("milestones").select("threshold_rows, tier_label").order("threshold_rows"),
     ]);
 
-  const rowList = (rows ?? []) as { id: string; status: string; submitted_at: string; metadata: Record<string, unknown> }[];
+  const rowList = (rows ?? []) as TaskerDashboardRow[];
   const acceptedRows = rowList.filter((row) => acceptedStatuses.includes(row.status as (typeof acceptedStatuses)[number])).length;
   const pendingRows = rowList.filter((row) => row.status === "pending_review").length;
   const today = new Date().toISOString().slice(0, 10);
@@ -344,17 +384,10 @@ export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashbo
   const longestStreak = Number((streak as { longest_streak_days?: number } | null)?.longest_streak_days ?? 0);
   const potentialSnapshot = await getStreakSnapshot(supabase, user.id, true);
   const potentialStreak = Math.max(currentStreak, potentialSnapshot.current_streak_days);
-  const pendingRowSummaries = rowList
+  const submittedRowSummaries = rowList.map(buildSubmittedRowSummary);
+  const pendingRowSummaries = submittedRowSummaries
     .filter((row) => row.status === "pending_review")
-    .sort((left, right) => right.submitted_at.localeCompare(left.submitted_at))
-    .slice(0, MAX_PROBLEMS_PER_TASKER_PER_DAY)
-    .map((row) => ({
-      id: row.id,
-      submitted_at: row.submitted_at,
-      problemId: rowProblemId(row),
-      taskType: rowTaskType(row),
-      tokenCount: rowTokenCount(row),
-    }));
+    .slice(0, MAX_PROBLEMS_PER_TASKER_PER_DAY);
   const earningRows = (earnings ?? []) as { source: string; amount_cents: number }[];
   const sourceBreakdown = earningRows.reduce<Record<string, number>>((acc, earning) => {
     acc[earning.source] = (acc[earning.source] ?? 0) + earning.amount_cents;
@@ -380,6 +413,7 @@ export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashbo
     submittedToday,
     submissionsToday,
     maxDailySubmissions: MAX_PROBLEMS_PER_TASKER_PER_DAY,
+    submittedRowSummaries,
     pendingRowSummaries,
     nextMilestone: next
       ? {

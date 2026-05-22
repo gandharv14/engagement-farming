@@ -1,4 +1,4 @@
-import { Flame, Gift, Hourglass, Target, Trophy } from "lucide-react";
+import { ExternalLink, Flame, Gift, Hourglass, Target, Trophy } from "lucide-react";
 
 import { submitRow } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
@@ -11,11 +11,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getTaskerShellProps, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { formatCurrency, formatSource, getTaskerDashboard } from "@/lib/data";
 import { TASK_TYPE_OPTIONS } from "@/lib/task-types";
 
 export const dynamic = "force-dynamic";
+
+const taskerRowStatusLabels: Record<string, string> = {
+  pending_review: "Pending review",
+  accepted_clean: "Accepted clean",
+  accepted_with_edits: "Accepted with edits",
+  rejected: "Rejected",
+};
+
+function formatTaskerRowStatus(status: string) {
+  return taskerRowStatusLabels[status] ?? formatSource(status);
+}
+
+function taskerRowStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "rejected") {
+    return "destructive";
+  }
+
+  if (status === "accepted_with_edits") {
+    return "secondary";
+  }
+
+  return status === "accepted_clean" ? "default" : "outline";
+}
 
 export default async function Home() {
   const context = await requireTaskerGameContext();
@@ -248,6 +272,60 @@ export default async function Home() {
             </CardContent>
           </Card>
         </section>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Submitted Rows</CardTitle>
+            <CardDescription>Every row you have logged, newest first.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Submitted</TableHead>
+                  <TableHead>Problem ID</TableHead>
+                  <TableHead>Task type</TableHead>
+                  <TableHead>Token count</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Taiga problem</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.submittedRowSummaries.length ? (
+                  data.submittedRowSummaries.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>{new Date(row.submitted_at).toLocaleString()}</TableCell>
+                      <TableCell className="font-mono text-foreground">{row.problemId}</TableCell>
+                      <TableCell>{row.taskType}</TableCell>
+                      <TableCell>{row.tokenCount.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant={taskerRowStatusVariant(row.status)}>{formatTaskerRowStatus(row.status)}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {row.taigaProblemUrl ? (
+                          <Button asChild variant="outline" size="sm">
+                            <a href={row.taigaProblemUrl} target="_blank" rel="noreferrer">
+                              <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                              Open
+                            </a>
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground">Not set</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      Submitted rows will appear here after you record them.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </AppShell>
   );

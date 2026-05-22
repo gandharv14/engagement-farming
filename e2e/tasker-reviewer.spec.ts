@@ -57,6 +57,8 @@ test.describe("tasker surfaces", () => {
       await page.getByRole("button", { name: "Record submitted row" }).click();
       await expect(page.getByText(/submissions logged today\./)).toBeVisible();
       await expect(page.getByText(/Potential streak if pending rows pass:/)).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Submitted Rows" })).toBeVisible();
+      await expect(page.getByRole("row", { name: new RegExp(`${prefix}-row.*Debugging.*3,210.*Pending review`) })).toBeVisible();
 
       await cleanupByPrefix(prefix);
     });
