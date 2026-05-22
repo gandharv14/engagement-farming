@@ -8,14 +8,14 @@ Use the existing Labelbox Auth0 application:
 https://manage.auth0.com/dashboard/us/labelbox/applications/czniCboFUZXCkxEM0tPrEGBAAudZAucH/settings
 ```
 
-The app defaults to:
+The app is hard-wired to:
 
 ```env
 AUTH0_ISSUER_BASE_URL=https://labelbox.us.auth0.com
 AUTH0_CLIENT_ID=czniCboFUZXCkxEM0tPrEGBAAudZAucH
 ```
 
-Set `AUTH0_CLIENT_SECRET` from that Auth0 application in `.env.local` and Vercel project environment variables.
+Set `AUTH0_CLIENT_SECRET` from that Auth0 application in `.env.local` and Vercel project environment variables. `AUTH0_ISSUER_BASE_URL` and `AUTH0_CLIENT_ID` are no longer required by the app.
 
 Configure the Auth0 application with:
 

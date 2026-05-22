@@ -5,7 +5,6 @@ import { ensureAppUser } from "@/lib/app-user";
 
 const labelboxAuth0Domain = "labelbox.us.auth0.com";
 const labelboxAuth0ClientId = "czniCboFUZXCkxEM0tPrEGBAAudZAucH";
-const auth0Domain = process.env.AUTH0_DOMAIN ?? process.env.AUTH0_ISSUER_BASE_URL?.replace(/^https?:\/\//, "").replace(/\/$/, "") ?? labelboxAuth0Domain;
 const authorizationParameters: Record<string, string> = {
   scope: "openid profile email",
 };
@@ -19,8 +18,8 @@ if (process.env.AUTH0_CONNECTION) {
 }
 
 export const auth0 = new Auth0Client({
-  domain: auth0Domain,
-  clientId: process.env.AUTH0_CLIENT_ID ?? labelboxAuth0ClientId,
+  domain: labelboxAuth0Domain,
+  clientId: labelboxAuth0ClientId,
   clientSecret: process.env.AUTH0_CLIENT_SECRET,
   appBaseUrl: process.env.AUTH0_BASE_URL,
   secret: process.env.AUTH0_SECRET,
@@ -35,9 +34,7 @@ export const auth0 = new Auth0Client({
   },
   async onCallback(error, ctx, session) {
     if (error) {
-      return NextResponse.redirect(
-        new URL(`/forbidden?error=${encodeURIComponent(error.message)}`, ctx.appBaseUrl),
-      );
+      return NextResponse.redirect(new URL("/api/auth/login", ctx.appBaseUrl));
     }
 
     if (session?.user) {

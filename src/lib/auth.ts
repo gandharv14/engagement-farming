@@ -40,8 +40,20 @@ export async function requireRole(allowed: AppRole | AppRole[]) {
   }
 
   if (!allowedRoles.includes(user.role)) {
-    redirect("/forbidden");
+    redirect(getHomePathForRole(user.role));
   }
 
   return user;
+}
+
+export function getHomePathForRole(role: AppRole) {
+  if (role === "admin") {
+    return "/admin";
+  }
+
+  if (role === "reviewer") {
+    return "/review/queue";
+  }
+
+  return "/";
 }

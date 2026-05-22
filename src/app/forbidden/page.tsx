@@ -1,25 +1,15 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrentUser, getHomePathForRole } from "@/lib/auth";
 
-export default function ForbiddenPage() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-6">
-      <Card className="max-w-md">
-        <CardHeader>
-          <CardTitle>Access unavailable</CardTitle>
-          <CardDescription>Your app role does not grant access to that surface.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex gap-3">
-          <Button asChild>
-            <Link href="/">Go home</Link>
-          </Button>
-          <Button asChild variant="secondary">
-            <a href="/api/auth/login">Sign in</a>
-          </Button>
-        </CardContent>
-      </Card>
-    </main>
-  );
+export const dynamic = "force-dynamic";
+
+export default async function ForbiddenPage() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/api/auth/login");
+  }
+
+  redirect(getHomePathForRole(user.role));
 }
