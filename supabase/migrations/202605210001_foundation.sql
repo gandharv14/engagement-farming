@@ -1,14 +1,7 @@
 create extension if not exists pgcrypto;
 
-create schema if not exists auth;
-
-create or replace function auth.role()
-returns text
-language sql
-stable
-as $$
-  select coalesce(auth.jwt() ->> 'https://app/role', 'anonymous');
-$$;
+-- Supabase manages the auth schema and provides auth.role() / auth.jwt().
+-- Creating functions in that schema fails on hosted projects.
 
 create table public.users (
   id uuid primary key default gen_random_uuid(),

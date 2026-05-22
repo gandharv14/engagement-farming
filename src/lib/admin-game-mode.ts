@@ -30,6 +30,7 @@ export type AdminGameModeStatus = {
 
 export type TaskerOption = {
   id: string;
+  auth0_sub: string;
   display_name: string | null;
   email: string | null;
 };
@@ -131,11 +132,12 @@ export async function clearAdminGameModeCookie() {
 
 export async function getOrCreateAdminShadowTasker(admin: AppUserRow): Promise<AppUserRow | null> {
   const supabase = await createSupabaseServerClient();
+  const auth0Sub = getShadowAuth0Sub(admin);
 
   if (!supabase) {
     return {
       id: "00000000-0000-0000-0000-000000000000",
-      auth0_sub: `admin-game|${admin.id}`,
+      auth0_sub: auth0Sub,
       email: admin.email,
       display_name: getShadowDisplayName(admin),
       role: "tasker",
@@ -143,25 +145,28 @@ export async function getOrCreateAdminShadowTasker(admin: AppUserRow): Promise<A
     };
   }
 
-  const select = "id, auth0_sub, email, display_name, role, admin_game_owner_id";
+  const select = "id, auth0_sub, email, display_name, role";
   const { data: existing } = await supabase
     .from("users")
     .select(select)
-    .eq("admin_game_owner_id", admin.id)
+    .eq("auth0_sub", auth0Sub)
     .maybeSingle();
 
   if (existing) {
-    return existing as AppUserRow;
+    return linkShadowTaskerToAdmin(existing as AppUserRow, admin.id);
   }
 
+  const shadowUser = {
+    auth0_sub: auth0Sub,
+    email: admin.email ? toShadowEmail(admin.email) : null,
+    display_name: getShadowDisplayName(admin),
+    role: "tasker",
+  };
   const { data, error } = await supabase
     .from("users")
     .upsert(
       {
-        auth0_sub: `admin-game|${admin.id}`,
-        email: admin.email ? toShadowEmail(admin.email) : null,
-        display_name: getShadowDisplayName(admin),
-        role: "tasker",
+        ...shadowUser,
         admin_game_owner_id: admin.id,
       },
       { onConflict: "auth0_sub" },
@@ -170,10 +175,24 @@ export async function getOrCreateAdminShadowTasker(admin: AppUserRow): Promise<A
     .single();
 
   if (error) {
-    throw new Error(error.message);
+    if (!isMissingAdminGameOwnerColumn(error)) {
+      throw new Error(error.message);
+    }
+
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from("users")
+      .upsert(shadowUser, { onConflict: "auth0_sub" })
+      .select(select)
+      .single();
+
+    if (fallbackError) {
+      throw new Error(fallbackError.message);
+    }
+
+    return fallbackData as AppUserRow;
   }
 
-  return data as AppUserRow;
+  return { ...(data as AppUserRow), admin_game_owner_id: admin.id };
 }
 
 export async function getTaskerById(taskerId: string): Promise<AppUserRow | null> {
@@ -185,7 +204,7 @@ export async function getTaskerById(taskerId: string): Promise<AppUserRow | null
 
   const { data } = await supabase
     .from("users")
-    .select("id, auth0_sub, email, display_name, role, admin_game_owner_id")
+    .select("id, auth0_sub, email, display_name, role")
     .eq("id", taskerId)
     .eq("role", "tasker")
     .maybeSingle();
@@ -202,16 +221,19 @@ export async function getTaskerOptionsForAdmin(): Promise<TaskerOption[]> {
 
   const { data } = await supabase
     .from("users")
-    .select("id, display_name, email")
+    .select("id, auth0_sub, display_name, email")
     .eq("role", "tasker")
-    .is("admin_game_owner_id", null)
     .order("display_name", { ascending: true });
 
-  return (data ?? []) as TaskerOption[];
+  return ((data ?? []) as TaskerOption[]).filter((tasker) => !tasker.auth0_sub.startsWith("admin-game|"));
 }
 
 function getShadowDisplayName(admin: AppUserRow) {
   return `${getAppUserDisplayName(admin, "Admin")} (Game Mode)`;
+}
+
+function getShadowAuth0Sub(admin: AppUserRow) {
+  return `admin-game|${admin.id}`;
 }
 
 function toShadowEmail(email: string) {
@@ -242,4 +264,37 @@ async function readAdminGameModeCookie(): Promise<AdminGameModeTarget | null> {
   }
 
   return null;
+}
+
+async function linkShadowTaskerToAdmin(tasker: AppUserRow, adminId: string): Promise<AppUserRow> {
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    return { ...tasker, admin_game_owner_id: adminId };
+  }
+
+  const { data, error } = await supabase
+    .from("users")
+    .update({ admin_game_owner_id: adminId })
+    .eq("id", tasker.id)
+    .select("id, auth0_sub, email, display_name, role")
+    .single();
+
+  if (error) {
+    if (isMissingAdminGameOwnerColumn(error)) {
+      return tasker;
+    }
+
+    throw new Error(error.message);
+  }
+
+  return { ...(data as AppUserRow), admin_game_owner_id: adminId };
+}
+
+function isMissingAdminGameOwnerColumn(error: { code?: string; message?: string }) {
+  return (
+    error.code === "42703" ||
+    error.message?.includes("admin_game_owner_id") ||
+    error.message?.includes("Could not find the 'admin_game_owner_id' column")
+  );
 }

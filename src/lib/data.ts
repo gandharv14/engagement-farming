@@ -120,7 +120,7 @@ export async function getMyUserRow(auth0Sub: string): Promise<AppUserRow | null>
 
   const { data } = await supabase
     .from("users")
-    .select("id, auth0_sub, email, display_name, role, admin_game_owner_id")
+    .select("id, auth0_sub, email, display_name, role")
     .eq("auth0_sub", auth0Sub)
     .maybeSingle();
 
