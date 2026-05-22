@@ -60,13 +60,27 @@ function Button({
     asChild?: boolean
     loading?: boolean
   }) {
-  const Comp = asChild ? Slot.Root : "button"
   const formStatus = useFormStatus()
-  const isSubmitButton = !asChild && type !== "button" && type !== "reset"
+  const isSubmitButton = type !== "button" && type !== "reset"
   const isLoading = loading ?? (isSubmitButton && formStatus.pending)
 
+  if (asChild) {
+    return (
+      <Slot.Root
+        data-slot="button"
+        data-variant={variant}
+        data-size={size}
+        aria-busy={loading || undefined}
+        className={cn(buttonVariants({ variant, size, className }))}
+        {...props}
+      >
+        {children}
+      </Slot.Root>
+    )
+  }
+
   return (
-    <Comp
+    <button
       data-slot="button"
       data-variant={variant}
       data-size={size}
@@ -76,9 +90,9 @@ function Button({
       type={type}
       {...props}
     >
-      {isLoading && !asChild ? <Spinner className="mr-1.5" /> : null}
+      {isLoading ? <Spinner className="mr-1.5" /> : null}
       {children}
-    </Comp>
+    </button>
   )
 }
 
