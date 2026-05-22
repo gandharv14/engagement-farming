@@ -19,21 +19,25 @@ export function getDefaultAppRole(): AppRole {
 export async function ensureAppUser(claims: Claims): Promise<AppUserRecord | null> {
   const supabase = createSupabaseAdminClient();
   const fallbackRole = getUserRoleFromClaims(claims) ?? getBootstrapRole(claims) ?? getDefaultAppRole();
+  const fallbackUser = getFallbackAppUser(claims, fallbackRole);
 
   if (!supabase) {
-    return {
-      id: "00000000-0000-0000-0000-000000000000",
-      auth0_sub: claims.sub,
-      email: claims.email ?? null,
-      display_name: getDisplayName(claims),
-      role: fallbackRole,
-    };
+    return fallbackUser;
   }
 
-  const { data: existing } = await supabase.from("users").select(appUserSelect).eq("auth0_sub", claims.sub).maybeSingle();
+  const { data: existing, error: existingError } = await supabase
+    .from("users")
+    .select(appUserSelect)
+    .eq("auth0_sub", claims.sub)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error("Unable to load app user from Supabase.", existingError.message);
+  }
+
   const role = ((existing as AppUserRecord | null)?.role ?? fallbackRole) as AppRole;
 
-  const { data } = await supabase
+  const { data, error: upsertError } = await supabase
     .from("users")
     .upsert(
       {
@@ -47,11 +51,25 @@ export async function ensureAppUser(claims: Claims): Promise<AppUserRecord | nul
     .select(appUserSelect)
     .single();
 
-  return (data as AppUserRecord | null) ?? ((existing as AppUserRecord | null) || null);
+  if (upsertError) {
+    console.error("Unable to upsert app user in Supabase.", upsertError.message);
+  }
+
+  return (data as AppUserRecord | null) ?? ((existing as AppUserRecord | null) || fallbackUser);
 }
 
 function getDisplayName(claims: Claims) {
   return claims.name ?? claims.nickname ?? claims.email ?? "Labelbox User";
+}
+
+function getFallbackAppUser(claims: Claims, role: AppRole): AppUserRecord {
+  return {
+    id: "00000000-0000-0000-0000-000000000000",
+    auth0_sub: claims.sub,
+    email: claims.email ?? null,
+    display_name: getDisplayName(claims),
+    role,
+  };
 }
 
 function getBootstrapRole(claims: Claims): AppRole | null {

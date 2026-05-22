@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
 
 import { ensureAppUser } from "@/lib/app-user";
+import type { AppRole } from "@/lib/roles";
 
 const labelboxAuth0Domain = "labelbox.auth0.com";
 const labelboxAuth0ClientId = "czniCboFUZXCkxEM0tPrEGBAAudZAucH";
@@ -36,11 +37,10 @@ export const auth0 = new Auth0Client({
       return NextResponse.redirect(new URL("/login?error=sso", ctx.appBaseUrl));
     }
 
-    if (session?.user) {
-      await ensureAppUser(session.user);
-    }
+    const appUser = session?.user ? await ensureAppUser(session.user) : null;
+    const postLoginPath = getPostLoginPath(ctx.returnTo, appUser?.role);
 
-    return NextResponse.redirect(new URL(ctx.returnTo ?? "/", ctx.appBaseUrl));
+    return NextResponse.redirect(new URL(postLoginPath, ctx.appBaseUrl));
   },
 });
 
@@ -89,4 +89,34 @@ function getOptionalEnv(name: string) {
   const value = process.env[name]?.trim();
 
   return value || undefined;
+}
+
+function getPostLoginPath(returnTo: string | undefined, role: AppRole | undefined) {
+  const safeReturnTo = getSafeRelativePath(returnTo);
+
+  if (safeReturnTo && safeReturnTo !== "/" && !safeReturnTo.startsWith("/login")) {
+    return safeReturnTo;
+  }
+
+  return getHomePathForRole(role);
+}
+
+function getSafeRelativePath(path: string | undefined) {
+  if (!path || !path.startsWith("/") || path.startsWith("//")) {
+    return null;
+  }
+
+  return path;
+}
+
+function getHomePathForRole(role: AppRole | undefined) {
+  if (role === "admin") {
+    return "/admin";
+  }
+
+  if (role === "reviewer") {
+    return "/review/queue";
+  }
+
+  return "/";
 }

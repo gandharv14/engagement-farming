@@ -1,8 +1,10 @@
 import { AlertCircle, Flame } from "lucide-react";
+import { redirect } from "next/navigation";
 
 import { LoginRedirect } from "@/app/login/login-redirect";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrentUser, getHomePathForRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,12 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const user = await getCurrentUser();
+
+  if (user) {
+    redirect(getHomePathForRole(user.role));
+  }
+
   const error = (await searchParams).error;
   const hasSsoError = Array.isArray(error) ? error.includes("sso") : error === "sso";
 
