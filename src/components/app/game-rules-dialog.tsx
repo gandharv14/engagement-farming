@@ -11,15 +11,23 @@ const rules = [
   "Accepted rows advance your streak, milestones, leaderboard position, and eligible rewards.",
   "Pending rows sit in the reviewer queue until quality checks land. Bonuses apply only after review.",
   "Finale bounties and quality multipliers follow the active sprint configuration.",
-  "Guild and leaderboard surfaces show momentum, while private earnings and admin economics stay protected.",
-  "Admin game mode uses the same tasker-facing rules, whether you play as yourself or impersonate a tasker.",
 ];
 
+let hasShownRulesThisAppOpen = false;
+
 export function GameRulesDialog() {
-  const [open, setOpen] = React.useState(true);
+  const [open, setOpen] = React.useState(() => !hasShownRulesThisAppOpen);
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+
+    if (!nextOpen) {
+      hasShownRulesThisAppOpen = true;
+    }
+  }
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Trigger asChild>
         <Button
           variant="outline"
@@ -62,8 +70,7 @@ export function GameRulesDialog() {
                 <CheckCircle2 className="h-4 w-4" />
                 Play fair, play daily
               </div>
-              Your goal is to keep high-quality token production consistent. The modal appears whenever you enter the
-              app so the rules are always visible before play.
+              Your goal is to keep high-quality token production consistent.
             </div>
 
             <div className="flex justify-end">
