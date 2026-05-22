@@ -114,6 +114,48 @@ export default async function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <form
+                action={submitRow}
+                className="grid gap-3 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4 md:grid-cols-2 xl:grid-cols-4"
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="problemId">Problem ID</Label>
+                  <Input id="problemId" name="problemId" placeholder="live-compare-**" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="taskType">Task type</Label>
+                  <Select name="taskType" required>
+                    <SelectTrigger id="taskType" className="w-full bg-background/35 font-mono">
+                      <SelectValue placeholder="Select task type" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      {TASK_TYPE_OPTIONS.map((taskType) => (
+                        <SelectItem key={taskType} value={taskType}>
+                          {taskType}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tokenCount">Token count</Label>
+                  <Input id="tokenCount" name="tokenCount" type="number" min="0" placeholder="1000000" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="taigaProblemUrl">Taiga problem link</Label>
+                  <Input id="taigaProblemUrl" name="taigaProblemUrl" type="url" placeholder="https://taiga..." required />
+                </div>
+                <Button
+                  className="md:col-span-2 xl:col-span-4"
+                  size="lg"
+                  type="submit"
+                  disabled={data.submissionsToday >= data.maxDailySubmissions}
+                >
+                  <Target className="mr-2 h-4 w-4" />
+                  {data.submissionsToday >= data.maxDailySubmissions ? "Daily limit reached" : "Record submitted row"}
+                </Button>
+              </form>
+
               {data.milestoneRoadmap.length ? (
                 <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4">
                   <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -203,48 +245,6 @@ export default async function Home() {
                   </div>
                 </div>
               ) : null}
-
-              <form
-                action={submitRow}
-                className="grid gap-3 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4 md:grid-cols-2 xl:grid-cols-4"
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="problemId">Problem ID</Label>
-                  <Input id="problemId" name="problemId" placeholder="live-compare-**" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="taskType">Task type</Label>
-                  <Select name="taskType" required>
-                    <SelectTrigger id="taskType" className="w-full bg-background/35 font-mono">
-                      <SelectValue placeholder="Select task type" />
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      {TASK_TYPE_OPTIONS.map((taskType) => (
-                        <SelectItem key={taskType} value={taskType}>
-                          {taskType}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tokenCount">Token count</Label>
-                  <Input id="tokenCount" name="tokenCount" type="number" min="0" placeholder="1000000" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="taigaProblemUrl">Taiga problem link</Label>
-                  <Input id="taigaProblemUrl" name="taigaProblemUrl" type="url" placeholder="https://taiga..." required />
-                </div>
-                <Button
-                  className="md:col-span-2 xl:col-span-4"
-                  size="lg"
-                  type="submit"
-                  disabled={data.submissionsToday >= data.maxDailySubmissions}
-                >
-                  <Target className="mr-2 h-4 w-4" />
-                  {data.submissionsToday >= data.maxDailySubmissions ? "Daily limit reached" : "Record submitted row"}
-                </Button>
-              </form>
             </CardContent>
           </Card>
 
