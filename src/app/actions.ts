@@ -7,6 +7,7 @@ import { requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { requireRole } from "@/lib/auth";
 import { getMyUserRow } from "@/lib/data";
 import {
+  MAX_PROBLEMS_PER_TASKER_PER_DAY,
   formatDateOnly,
   getCollectiveProblemCapacity,
   getMaxProblemsPerTasker,
@@ -80,6 +81,25 @@ export async function submitRow(formData: FormData) {
 
   const tokenCount = Number(formString(formData, "tokenCount") || "0");
   const taskType = formString(formData, "taskType") || "long-horizon";
+  const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setUTCDate(todayStart.getUTCDate() + 1);
+
+  const { count: submissionsToday, error: countError } = await supabase
+    .from("rows")
+    .select("id", { count: "exact", head: true })
+    .eq("tasker_id", userRow.id)
+    .gte("submitted_at", todayStart.toISOString())
+    .lt("submitted_at", tomorrowStart.toISOString());
+
+  if (countError) {
+    throw new Error(countError.message);
+  }
+
+  if ((submissionsToday ?? 0) >= MAX_PROBLEMS_PER_TASKER_PER_DAY) {
+    throw new Error(`Daily submission limit reached (${MAX_PROBLEMS_PER_TASKER_PER_DAY} problems).`);
+  }
 
   const { error } = await supabase.from("rows").insert({
     tasker_id: userRow.id,

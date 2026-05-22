@@ -65,9 +65,11 @@ export default async function Home() {
             <CardHeader>
               <CardTitle>Today&apos;s Status</CardTitle>
               <CardDescription>
-                {data.submittedToday
-                  ? "You have a submission logged today."
-                  : "No submission yet today. One row keeps your cadence visible."}
+                {data.submissionsToday >= data.maxDailySubmissions
+                  ? `Daily submission limit reached (${data.maxDailySubmissions} problems).`
+                  : data.submittedToday
+                    ? `${data.submissionsToday} of ${data.maxDailySubmissions} submissions logged today.`
+                    : `No submission yet today. You can submit up to ${data.maxDailySubmissions} problems per day.`}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -100,9 +102,14 @@ export default async function Home() {
                   <Label htmlFor="tokenCount">Token count</Label>
                   <Input id="tokenCount" name="tokenCount" type="number" min="0" placeholder="1000000" />
                 </div>
-                <Button className="md:col-span-3" size="lg" type="submit">
+                <Button
+                  className="md:col-span-3"
+                  size="lg"
+                  type="submit"
+                  disabled={data.submissionsToday >= data.maxDailySubmissions}
+                >
                   <Target className="mr-2 h-4 w-4" />
-                  Record submitted row
+                  {data.submissionsToday >= data.maxDailySubmissions ? "Daily limit reached" : "Record submitted row"}
                 </Button>
               </form>
             </CardContent>

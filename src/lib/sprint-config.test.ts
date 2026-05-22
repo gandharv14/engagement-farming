@@ -35,11 +35,11 @@ describe("sprint config helpers", () => {
     const start = parseDateOnly("2026-05-22", "Sprint start date");
     const end = parseDateOnly("2026-06-02", "Sprint end date");
 
-    expect(MAX_PROBLEMS_PER_TASKER_PER_DAY).toBe(2);
+    expect(MAX_PROBLEMS_PER_TASKER_PER_DAY).toBe(4);
     expect(TOKENS_PER_PROBLEM).toBe(1_000_000);
     expect(getSprintDurationDays(start, end)).toBe(12);
-    expect(getMaxProblemsPerTasker(12)).toBe(24);
-    expect(getCollectiveProblemCapacity(12, 42)).toBe(1008);
+    expect(getMaxProblemsPerTasker(12)).toBe(48);
+    expect(getCollectiveProblemCapacity(12, 42)).toBe(2016);
   });
 
   it("rejects invalid sprint durations", () => {

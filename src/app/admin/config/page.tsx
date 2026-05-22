@@ -261,14 +261,14 @@ export default async function AdminConfigPage({ searchParams }: { searchParams?:
                   <FieldHelpLabel
                     htmlFor="tier3ThresholdRows"
                     label="Tier 3 threshold"
-                    definition="Accepted rows required to unlock the final goodie tier. A 12-day sprint caps one player at 24 rows."
+                    definition={`Accepted rows required to unlock the final goodie tier. With the current duration, one player can complete at most ${maxProblemsPerTasker} rows.`}
                   />
                   <Input
                     id="tier3ThresholdRows"
                     name="tier3ThresholdRows"
                     type="number"
                     min="1"
-                    defaultValue={milestoneById.get(3)?.threshold_rows ?? 24}
+                    defaultValue={milestoneById.get(3)?.threshold_rows ?? 25}
                     required
                   />
                 </div>

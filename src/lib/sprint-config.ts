@@ -1,4 +1,4 @@
-export const MAX_PROBLEMS_PER_TASKER_PER_DAY = 2;
+export const MAX_PROBLEMS_PER_TASKER_PER_DAY = 4;
 export const TOKENS_PER_PROBLEM = 1_000_000;
 
 export function parseDateOnly(value: string, label: string) {

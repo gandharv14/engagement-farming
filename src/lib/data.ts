@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase";
+import { MAX_PROBLEMS_PER_TASKER_PER_DAY } from "@/lib/sprint-config";
 
 export const acceptedStatuses = ["accepted_clean", "accepted_with_edits"] as const;
 
@@ -31,6 +32,8 @@ export type TaskerDashboardData = {
   totalEarnedCents: number;
   sourceBreakdown: Record<string, number>;
   submittedToday: boolean;
+  submissionsToday: number;
+  maxDailySubmissions: number;
   nextMilestone: {
     threshold: number;
     tierLabel: string;
@@ -153,6 +156,8 @@ export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashbo
       totalEarnedCents: 12000,
       sourceBreakdown: { quality_bonus: 9000, streak_bonus: 3000 },
       submittedToday: false,
+      submissionsToday: 0,
+      maxDailySubmissions: MAX_PROBLEMS_PER_TASKER_PER_DAY,
       nextMilestone: { threshold: 5, tierLabel: "Tier 1", progress: 80 },
     };
   }
@@ -170,7 +175,8 @@ export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashbo
   const acceptedRows = rowList.filter((row) => acceptedStatuses.includes(row.status as (typeof acceptedStatuses)[number])).length;
   const pendingRows = rowList.filter((row) => row.status === "pending_review").length;
   const today = new Date().toISOString().slice(0, 10);
-  const submittedToday = rowList.some((row) => row.submitted_at?.slice(0, 10) === today);
+  const submissionsToday = rowList.filter((row) => row.submitted_at?.slice(0, 10) === today).length;
+  const submittedToday = submissionsToday > 0;
   const earningRows = (earnings ?? []) as { source: string; amount_cents: number }[];
   const sourceBreakdown = earningRows.reduce<Record<string, number>>((acc, earning) => {
     acc[earning.source] = (acc[earning.source] ?? 0) + earning.amount_cents;
@@ -190,6 +196,8 @@ export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashbo
     totalEarnedCents: earningRows.reduce((sum, earning) => sum + earning.amount_cents, 0),
     sourceBreakdown,
     submittedToday,
+    submissionsToday,
+    maxDailySubmissions: MAX_PROBLEMS_PER_TASKER_PER_DAY,
     nextMilestone: next
       ? {
           threshold: next.threshold_rows,
@@ -291,7 +299,7 @@ export async function getGoodies(auth0Sub: string) {
       milestones: [
         { id: 1, threshold_rows: 5, tier_label: "Tier 1" },
         { id: 2, threshold_rows: 10, tier_label: "Tier 2" },
-        { id: 3, threshold_rows: 24, tier_label: "Tier 3" },
+        { id: 3, threshold_rows: 25, tier_label: "Tier 3" },
       ],
     };
   }
