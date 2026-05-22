@@ -9,6 +9,28 @@ import { createSupabaseServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+function formatDateInput(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
+  return nextDate;
+}
+
+function sprintDurationDays(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+  const durationMs = end.getTime() - start.getTime();
+
+  if (!Number.isFinite(durationMs) || durationMs < 0) {
+    return 1;
+  }
+
+  return Math.floor(durationMs / 86_400_000) + 1;
+}
+
 export default async function AdminConfigPage() {
   const user = await requireRole("admin");
   const supabase = await createSupabaseServerClient();
@@ -20,7 +42,14 @@ export default async function AdminConfigPage() {
     quality_multiplier?: number;
     endgame_bounty_active?: boolean;
     endgame_bounty_amount_cents?: number;
+    sprint_start_date?: string;
+    sprint_end_date?: string;
   };
+  const fallbackStartDate = formatDateInput(new Date());
+  const fallbackEndDate = formatDateInput(addDays(new Date(`${fallbackStartDate}T00:00:00.000Z`), 11));
+  const sprintStartDate = sprintConfig.sprint_start_date ?? fallbackStartDate;
+  const sprintEndDate = sprintConfig.sprint_end_date ?? fallbackEndDate;
+  const currentDurationDays = sprintDurationDays(sprintStartDate, sprintEndDate);
 
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
@@ -32,6 +61,33 @@ export default async function AdminConfigPage() {
         </CardHeader>
         <CardContent>
           <form action={updateSprintConfig} className="grid gap-4 md:max-w-xl">
+            <div className="grid gap-4 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4">
+              <div className="grid gap-2">
+                <FieldHelpLabel
+                  htmlFor="sprintStartDate"
+                  label="Sprint start date"
+                  definition="The first calendar day counted as day 1 of the sprint. Tasker dashboards calculate the current sprint day from this value."
+                />
+                <Input id="sprintStartDate" name="sprintStartDate" type="date" defaultValue={sprintStartDate} required />
+              </div>
+              <div className="grid gap-2">
+                <FieldHelpLabel
+                  htmlFor="sprintEndDate"
+                  label="Sprint end date"
+                  definition="The final calendar day included in the sprint. Leave duration blank to save this date directly."
+                />
+                <Input id="sprintEndDate" name="sprintEndDate" type="date" defaultValue={sprintEndDate} required />
+              </div>
+              <div className="grid gap-2">
+                <FieldHelpLabel
+                  htmlFor="sprintDurationDays"
+                  label="Duration override, days"
+                  definition="Optional. Enter a duration to recalculate the end date from the start date. Leave blank when editing the end date directly."
+                />
+                <Input id="sprintDurationDays" name="sprintDurationDays" type="number" min="1" placeholder={`${currentDurationDays}`} />
+                <p className="text-xs text-muted-foreground">Current duration: {currentDurationDays} days.</p>
+              </div>
+            </div>
             <div className="grid gap-2">
               <FieldHelpLabel
                 htmlFor="currentPhase"
