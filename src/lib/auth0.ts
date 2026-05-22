@@ -3,7 +3,7 @@ import { Auth0Client } from "@auth0/nextjs-auth0/server";
 
 import { ensureAppUser } from "@/lib/app-user";
 
-const labelboxAuth0Domain = "labelbox.us.auth0.com";
+const labelboxAuth0Domain = "labelbox.auth0.com";
 const labelboxAuth0ClientId = "czniCboFUZXCkxEM0tPrEGBAAudZAucH";
 const authorizationParameters: Record<string, string> = {
   scope: "openid profile email",
@@ -34,7 +34,7 @@ export const auth0 = new Auth0Client({
   },
   async onCallback(error, ctx, session) {
     if (error) {
-      return NextResponse.redirect(new URL("/api/auth/login", ctx.appBaseUrl));
+      return NextResponse.redirect(new URL("/login", ctx.appBaseUrl));
     }
 
     if (session?.user) {

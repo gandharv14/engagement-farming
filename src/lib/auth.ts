@@ -36,7 +36,7 @@ export async function requireRole(allowed: AppRole | AppRole[]) {
   const allowedRoles = Array.isArray(allowed) ? allowed : [allowed];
 
   if (!user) {
-    redirect("/api/auth/login");
+    redirect("/login");
   }
 
   if (!allowedRoles.includes(user.role)) {

@@ -8,7 +8,7 @@ export default async function ForbiddenPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/api/auth/login");
+    redirect("/login");
   }
 
   redirect(getHomePathForRole(user.role));

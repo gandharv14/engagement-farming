@@ -11,7 +11,7 @@ https://manage.auth0.com/dashboard/us/labelbox/applications/czniCboFUZXCkxEM0tPr
 The app is hard-wired to:
 
 ```env
-AUTH0_ISSUER_BASE_URL=https://labelbox.us.auth0.com
+AUTH0_ISSUER_BASE_URL=https://labelbox.auth0.com
 AUTH0_CLIENT_ID=czniCboFUZXCkxEM0tPrEGBAAudZAucH
 ```
 
