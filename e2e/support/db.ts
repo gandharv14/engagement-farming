@@ -100,6 +100,27 @@ export async function cleanupByPrefix(prefix: string) {
 
   await supabase.from("guilds").delete().like("name", `${prefix}%`);
   await supabase.from("goodies").delete().like("name", `${prefix}%`);
+  await supabase.from("users").delete().like("auth0_sub", `e2e|${prefix}%`);
+}
+
+export async function createE2EUser(prefix: string, role: AppRole = "tasker") {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase
+    .from("users")
+    .insert({
+      auth0_sub: `e2e|${prefix}`,
+      email: `${prefix}@example.com`,
+      display_name: `${prefix} User`,
+      role,
+    })
+    .select("id, auth0_sub, email, display_name, role")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as E2EUser;
 }
 
 export async function seedAcceptedRowsForTasker(taskerEmail: string, prefix: string, count: number) {
@@ -153,6 +174,72 @@ export async function seedPendingRowForTasker(taskerEmail: string, prefix: strin
   }
 
   return (data as { id: string }).id;
+}
+
+export async function getRowsByPrefix(prefix: string) {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase
+    .from("rows")
+    .select("id, tasker_id, status, metadata")
+    .like("metadata->>external_row_id", `${prefix}%`);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as { id: string; tasker_id: string; status: string; metadata: Record<string, unknown> }[];
+}
+
+export async function getRowReview(rowId: string) {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase.from("row_reviews").select("row_id, reviewer_id, notes").eq("row_id", rowId).maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as { row_id: string; reviewer_id: string; notes: string | null } | null;
+}
+
+export async function getRowStatus(rowId: string) {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase.from("rows").select("status, review_score, reviewed_at").eq("id", rowId).maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as { status: string; review_score: number | null; reviewed_at: string | null } | null;
+}
+
+export async function seedPayoutEarningForUser(userEmail: string, referenceId: string, amountCents: number) {
+  const user = await getUserByEmail(userEmail);
+  await seedPayoutEarning(user.id, referenceId, amountCents);
+
+  return user;
+}
+
+export async function seedPayoutEarning(userId: string, referenceId: string, amountCents: number) {
+  const supabase = createE2ESupabaseClient();
+  const { error } = await supabase.from("earnings").insert({
+    user_id: userId,
+    source: "quality_bonus",
+    amount_cents: amountCents,
+    reference_id: referenceId,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function cleanupEarningByReferenceId(referenceId: string) {
+  const supabase = createE2ESupabaseClient();
+  const { error } = await supabase.from("earnings").delete().eq("reference_id", referenceId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function createGoodieForE2E(prefix: string, tierLabel = "Tier 1") {

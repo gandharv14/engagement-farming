@@ -49,8 +49,7 @@ export function GameRulesDialog() {
                 Welcome to Tokenmaxxing
               </Dialog.Title>
               <Dialog.Description className="mt-2 text-sm text-muted-foreground">
-                Maximize accepted tokens, protect your streak, and keep the sprint moving without exposing private
-                economics.
+                Maximize tokens and problem, protect your streak, and keep the sprint moving.
               </Dialog.Description>
             </div>
 

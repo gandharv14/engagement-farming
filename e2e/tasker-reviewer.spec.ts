@@ -16,7 +16,7 @@ test.describe("tasker surfaces", () => {
   test("renders the main tasker pages", async ({ page }) => {
     await page.goto("/");
     await dismissRulesModal(page);
-    await expect(page.getByRole("heading", { name: "Keep your streak warm." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Keep your streak online." })).toBeVisible();
 
     await page.goto("/leaderboards");
     await dismissRulesModal(page);

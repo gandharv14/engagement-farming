@@ -9,7 +9,7 @@ const adminGameModeCookie = "admin-game-mode";
 const ownGameModeValue = "own";
 const impersonatePrefix = "tasker:";
 
-type AdminGameModeTarget =
+export type AdminGameModeTarget =
   | { mode: "own" }
   | {
       mode: "impersonation";
@@ -232,11 +232,11 @@ function getShadowDisplayName(admin: AppUserRow) {
   return `${getAppUserDisplayName(admin, "Admin")} (Game Mode)`;
 }
 
-function getShadowAuth0Sub(admin: AppUserRow) {
+export function getShadowAuth0Sub(admin: AppUserRow) {
   return `admin-game|${admin.id}`;
 }
 
-function toShadowEmail(email: string) {
+export function toShadowEmail(email: string) {
   const [localPart, domain] = email.split("@");
 
   if (!localPart || !domain) {
@@ -250,6 +250,10 @@ async function readAdminGameModeCookie(): Promise<AdminGameModeTarget | null> {
   const cookieStore = await cookies();
   const value = cookieStore.get(adminGameModeCookie)?.value;
 
+  return parseAdminGameModeCookieValue(value);
+}
+
+export function parseAdminGameModeCookieValue(value: string | undefined): AdminGameModeTarget | null {
   if (!value) {
     return null;
   }
