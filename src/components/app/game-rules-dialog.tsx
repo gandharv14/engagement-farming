@@ -5,11 +5,13 @@ import { BookOpenCheck, CheckCircle2, XIcon } from "lucide-react";
 import { Dialog } from "radix-ui";
 
 import { Button } from "@/components/ui/button";
+import { TOKENS_PER_PROBLEM } from "@/lib/sprint-config";
 
 const rules = [
   "Log each submitted row with its task type and token count so your daily cadence stays visible.",
-  "Accepted rows advance your streak, milestones, leaderboard position, and eligible rewards.",
-  "Pending rows sit in the reviewer queue until quality checks land. Bonuses apply only after review.",
+  `A problem will only be accepted if it has more than ${TOKENS_PER_PROBLEM.toLocaleString()} tokens.`,
+  "Accepted rows advance your streak based on the day you submitted them, not the day they were reviewed.",
+  "Pending rows show provisional streak upside until quality checks land. Bonuses apply only after review.",
   "Finale bounties and quality multipliers follow the active sprint configuration.",
 ];
 

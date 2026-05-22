@@ -7,6 +7,12 @@ let envLoaded = false;
 
 type AppRole = "admin" | "reviewer" | "tasker";
 
+type SeedPendingRowOptions = {
+  submittedAt?: string;
+  problemSuffix?: string;
+  tokenCount?: number;
+};
+
 export type E2EUser = {
   id: string;
   email: string | null;
@@ -158,18 +164,18 @@ export async function seedAcceptedRowsForTasker(taskerEmail: string, prefix: str
   }
 }
 
-export async function seedPendingRowForTasker(taskerEmail: string, prefix: string) {
+export async function seedPendingRowForUserId(userId: string, prefix: string, options: SeedPendingRowOptions = {}) {
   const supabase = createE2ESupabaseClient();
-  const tasker = await getUserByEmail(taskerEmail);
   const { data, error } = await supabase
     .from("rows")
     .insert({
-      tasker_id: tasker.id,
+      tasker_id: userId,
+      ...(options.submittedAt ? { submitted_at: options.submittedAt } : {}),
       status: "pending_review",
       metadata: {
-        problem_id: `${prefix}-pending`,
+        problem_id: `${prefix}-${options.problemSuffix ?? "pending"}`,
         task_type: "Debugging",
-        token_count: 4242,
+        token_count: options.tokenCount ?? 4242,
         taiga_problem_url: "https://taiga.example.com/project/live-compare/us/pending",
       },
     })
@@ -181,6 +187,43 @@ export async function seedPendingRowForTasker(taskerEmail: string, prefix: strin
   }
 
   return (data as { id: string }).id;
+}
+
+export async function seedPendingRowForTasker(taskerEmail: string, prefix: string, options: SeedPendingRowOptions = {}) {
+  const tasker = await getUserByEmail(taskerEmail);
+  return seedPendingRowForUserId(tasker.id, prefix, options);
+}
+
+export async function acceptRow(rowId: string, reviewedAt = new Date().toISOString()) {
+  const supabase = createE2ESupabaseClient();
+  const { error } = await supabase
+    .from("rows")
+    .update({ status: "accepted_clean", reviewed_at: reviewedAt, review_score: 5 })
+    .eq("id", rowId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function getStreakForUser(userId: string) {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase
+    .from("streaks")
+    .select("current_streak_days, longest_streak_days, last_active_date, streak_started_on")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as {
+    current_streak_days: number;
+    longest_streak_days: number;
+    last_active_date: string | null;
+    streak_started_on: string | null;
+  } | null;
 }
 
 export async function getRowsByPrefix(prefix: string) {

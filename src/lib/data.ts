@@ -28,17 +28,37 @@ export type TaskerDashboardData = {
   pendingRows: number;
   currentStreak: number;
   longestStreak: number;
+  potentialStreak: number;
+  pendingStreakDelta: number;
   milestonesUnlocked: number;
+  milestoneRoadmap: MilestoneRoadmapItem[];
   totalEarnedCents: number;
   sourceBreakdown: Record<string, number>;
   submittedToday: boolean;
   submissionsToday: number;
   maxDailySubmissions: number;
+  pendingRowSummaries: PendingRowSummary[];
   nextMilestone: {
     threshold: number;
     tierLabel: string;
     progress: number;
   } | null;
+};
+
+export type MilestoneRoadmapItem = {
+  threshold: number;
+  tierLabel: string;
+  progress: number;
+  remainingRows: number;
+  status: "unlocked" | "current" | "locked";
+};
+
+export type PendingRowSummary = {
+  id: string;
+  submitted_at: string;
+  problemId: string;
+  taskType: string;
+  tokenCount: number;
 };
 
 export type LeaderboardEntry = {
@@ -78,6 +98,10 @@ export type Earning = {
 
 export type ReviewQueueRow = {
   id: string;
+  tasker_id: string;
+  tasker_display_name: string;
+  tasker_current_streak_days: number;
+  tasker_potential_streak_days: number;
   submitted_at: string;
   metadata: Record<string, unknown>;
 };
@@ -106,6 +130,139 @@ const fallbackConfig: SprintPublicConfig = {
   current_sprint_day: 1,
   total_sprint_days: 12,
 };
+
+const fallbackMilestones = [
+  { threshold_rows: 5, tier_label: "Tier 1" },
+  { threshold_rows: 10, tier_label: "Tier 2" },
+  { threshold_rows: 25, tier_label: "Tier 3" },
+];
+
+type SupabaseServerClient = NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>;
+
+type StreakSnapshot = {
+  current_streak_days: number;
+  longest_streak_days: number;
+  last_active_date: string | null;
+  streak_started_on: string | null;
+};
+
+const emptyStreakSnapshot: StreakSnapshot = {
+  current_streak_days: 0,
+  longest_streak_days: 0,
+  last_active_date: null,
+  streak_started_on: null,
+};
+
+function normalizeStreakSnapshot(row: Partial<StreakSnapshot> | null | undefined): StreakSnapshot {
+  return {
+    current_streak_days: Number(row?.current_streak_days ?? 0),
+    longest_streak_days: Number(row?.longest_streak_days ?? 0),
+    last_active_date: row?.last_active_date ?? null,
+    streak_started_on: row?.streak_started_on ?? null,
+  };
+}
+
+async function getStreakSnapshot(supabase: SupabaseServerClient, userId: string, includePending: boolean) {
+  const { data, error } = await supabase
+    .rpc("calculate_streak_snapshot", {
+      p_user_id: userId,
+      p_include_pending: includePending,
+    })
+    .maybeSingle();
+
+  if (error) {
+    return emptyStreakSnapshot;
+  }
+
+  return normalizeStreakSnapshot(data as Partial<StreakSnapshot> | null);
+}
+
+function rowProblemId(row: { id: string; metadata: Record<string, unknown> }) {
+  return String(row.metadata.problem_id ?? row.metadata.external_row_id ?? row.id);
+}
+
+function rowTaskType(row: { metadata: Record<string, unknown> }) {
+  return String(row.metadata.task_type ?? "long-horizon");
+}
+
+function rowTokenCount(row: { metadata: Record<string, unknown> }) {
+  return Number(row.metadata.token_count ?? 0);
+}
+
+function buildMilestoneRoadmap(milestones: { threshold_rows: number; tier_label: string }[], acceptedRows: number): MilestoneRoadmapItem[] {
+  const sortedMilestones = [...milestones].sort((left, right) => left.threshold_rows - right.threshold_rows);
+  const nextMilestoneIndex = sortedMilestones.findIndex((milestone) => acceptedRows < milestone.threshold_rows);
+  const currentMilestoneIndex = nextMilestoneIndex === -1 ? sortedMilestones.length - 1 : nextMilestoneIndex;
+
+  return sortedMilestones.map((milestone, index) => {
+    const threshold = Number(milestone.threshold_rows);
+    const unlocked = acceptedRows >= threshold;
+
+    return {
+      threshold,
+      tierLabel: milestone.tier_label,
+      progress: threshold > 0 ? Math.min(100, Math.round((acceptedRows / threshold) * 100)) : 100,
+      remainingRows: Math.max(0, threshold - acceptedRows),
+      status: unlocked ? "unlocked" : index === currentMilestoneIndex ? "current" : "locked",
+    };
+  });
+}
+
+function taskerDisplayName(tasker: { display_name?: string | null; email?: string | null } | null | undefined, taskerId: string) {
+  return tasker?.display_name ?? tasker?.email ?? `Tasker ${taskerId.slice(0, 8)}`;
+}
+
+async function getTaskerStreakContexts(supabase: SupabaseServerClient, taskerIds: string[]) {
+  const uniqueTaskerIds = Array.from(new Set(taskerIds));
+  const contexts = new Map<
+    string,
+    {
+      displayName: string;
+      currentStreak: number;
+      potentialStreak: number;
+    }
+  >();
+
+  if (!uniqueTaskerIds.length) {
+    return contexts;
+  }
+
+  const [{ data: taskers }, snapshots] = await Promise.all([
+    supabase.from("users").select("id, display_name, email").in("id", uniqueTaskerIds),
+    Promise.all(
+      uniqueTaskerIds.map(async (taskerId) => {
+        const [current, potential] = await Promise.all([
+          getStreakSnapshot(supabase, taskerId, false),
+          getStreakSnapshot(supabase, taskerId, true),
+        ]);
+
+        return {
+          taskerId,
+          current,
+          potential,
+        };
+      }),
+    ),
+  ]);
+
+  const taskerList = (taskers ?? []) as { id: string; display_name: string | null; email: string | null }[];
+
+  snapshots.forEach(({ taskerId, current, potential }) => {
+    const currentStreak = current.current_streak_days;
+    const potentialStreak = Math.max(currentStreak, potential.current_streak_days);
+
+    contexts.set(taskerId, {
+      displayName: taskerDisplayName(
+        taskerList.find((tasker) => tasker.id === taskerId),
+        taskerId,
+      ),
+      currentStreak,
+      potentialStreak,
+    });
+  });
+
+  return contexts;
+}
 
 export async function getMyUserRow(auth0Sub: string): Promise<AppUserRow | null> {
   const supabase = await createSupabaseServerClient();
@@ -146,43 +303,65 @@ export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashbo
   const supabase = await createSupabaseServerClient();
 
   if (!supabase || !user) {
+    const acceptedRows = 4;
+
     return {
       config,
-      acceptedRows: 4,
+      acceptedRows,
       pendingRows: 1,
       currentStreak: 2,
       longestStreak: 4,
+      potentialStreak: 3,
+      pendingStreakDelta: 1,
       milestonesUnlocked: 0,
+      milestoneRoadmap: buildMilestoneRoadmap(fallbackMilestones, acceptedRows),
       totalEarnedCents: 12000,
       sourceBreakdown: { quality_bonus: 9000, streak_bonus: 3000 },
       submittedToday: false,
       submissionsToday: 0,
       maxDailySubmissions: MAX_PROBLEMS_PER_TASKER_PER_DAY,
+      pendingRowSummaries: [],
       nextMilestone: { threshold: 5, tierLabel: "Tier 1", progress: 80 },
     };
   }
 
   const [{ data: rows }, { data: streak }, { data: achievements }, { data: earnings }, { data: milestones }] =
     await Promise.all([
-      supabase.from("rows").select("status, submitted_at").eq("tasker_id", user.id),
+      supabase.from("rows").select("id, status, submitted_at, metadata").eq("tasker_id", user.id),
       supabase.from("streaks").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("milestone_achievements").select("id").eq("user_id", user.id),
       supabase.from("earnings").select("source, amount_cents").eq("user_id", user.id),
       supabase.from("milestones").select("threshold_rows, tier_label").order("threshold_rows"),
     ]);
 
-  const rowList = (rows ?? []) as { status: string; submitted_at: string }[];
+  const rowList = (rows ?? []) as { id: string; status: string; submitted_at: string; metadata: Record<string, unknown> }[];
   const acceptedRows = rowList.filter((row) => acceptedStatuses.includes(row.status as (typeof acceptedStatuses)[number])).length;
   const pendingRows = rowList.filter((row) => row.status === "pending_review").length;
   const today = new Date().toISOString().slice(0, 10);
   const submissionsToday = rowList.filter((row) => row.submitted_at?.slice(0, 10) === today).length;
   const submittedToday = submissionsToday > 0;
+  const currentStreak = Number((streak as { current_streak_days?: number } | null)?.current_streak_days ?? 0);
+  const longestStreak = Number((streak as { longest_streak_days?: number } | null)?.longest_streak_days ?? 0);
+  const potentialSnapshot = await getStreakSnapshot(supabase, user.id, true);
+  const potentialStreak = Math.max(currentStreak, potentialSnapshot.current_streak_days);
+  const pendingRowSummaries = rowList
+    .filter((row) => row.status === "pending_review")
+    .sort((left, right) => right.submitted_at.localeCompare(left.submitted_at))
+    .slice(0, MAX_PROBLEMS_PER_TASKER_PER_DAY)
+    .map((row) => ({
+      id: row.id,
+      submitted_at: row.submitted_at,
+      problemId: rowProblemId(row),
+      taskType: rowTaskType(row),
+      tokenCount: rowTokenCount(row),
+    }));
   const earningRows = (earnings ?? []) as { source: string; amount_cents: number }[];
   const sourceBreakdown = earningRows.reduce<Record<string, number>>((acc, earning) => {
     acc[earning.source] = (acc[earning.source] ?? 0) + earning.amount_cents;
     return acc;
   }, {});
-  const next = ((milestones ?? []) as { threshold_rows: number; tier_label: string }[]).find(
+  const milestoneRows = (milestones ?? []) as { threshold_rows: number; tier_label: string }[];
+  const next = milestoneRows.find(
     (milestone) => milestone.threshold_rows > acceptedRows,
   );
 
@@ -190,14 +369,18 @@ export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashbo
     config,
     acceptedRows,
     pendingRows,
-    currentStreak: Number((streak as { current_streak_days?: number } | null)?.current_streak_days ?? 0),
-    longestStreak: Number((streak as { longest_streak_days?: number } | null)?.longest_streak_days ?? 0),
+    currentStreak,
+    longestStreak,
+    potentialStreak,
+    pendingStreakDelta: Math.max(0, potentialStreak - currentStreak),
     milestonesUnlocked: (achievements ?? []).length,
+    milestoneRoadmap: buildMilestoneRoadmap(milestoneRows, acceptedRows),
     totalEarnedCents: earningRows.reduce((sum, earning) => sum + earning.amount_cents, 0),
     sourceBreakdown,
     submittedToday,
     submissionsToday,
     maxDailySubmissions: MAX_PROBLEMS_PER_TASKER_PER_DAY,
+    pendingRowSummaries,
     nextMilestone: next
       ? {
           threshold: next.threshold_rows,
@@ -353,11 +536,26 @@ export async function getReviewQueue(): Promise<ReviewQueueRow[]> {
 
   const { data } = await supabase
     .from("rows")
-    .select("id, submitted_at, metadata")
+    .select("id, tasker_id, submitted_at, metadata")
     .eq("status", "pending_review")
     .order("submitted_at", { ascending: true });
 
-  return (data ?? []) as ReviewQueueRow[];
+  const rows = (data ?? []) as { id: string; tasker_id: string; submitted_at: string; metadata: Record<string, unknown> }[];
+  const contexts = await getTaskerStreakContexts(
+    supabase,
+    rows.map((row) => row.tasker_id),
+  );
+
+  return rows.map((row) => {
+    const context = contexts.get(row.tasker_id);
+
+    return {
+      ...row,
+      tasker_display_name: context?.displayName ?? `Tasker ${row.tasker_id.slice(0, 8)}`,
+      tasker_current_streak_days: context?.currentStreak ?? 0,
+      tasker_potential_streak_days: context?.potentialStreak ?? 0,
+    };
+  });
 }
 
 export async function getReviewDetail(rowId: string): Promise<ReviewDetail | null> {
@@ -369,11 +567,25 @@ export async function getReviewDetail(rowId: string): Promise<ReviewDetail | nul
 
   const { data } = await supabase
     .from("rows")
-    .select("id, submitted_at, status, metadata")
+    .select("id, tasker_id, submitted_at, status, metadata")
     .eq("id", rowId)
     .maybeSingle();
 
-  return (data as ReviewDetail | null) ?? null;
+  const row = data as ({ id: string; tasker_id: string; submitted_at: string; status: string; metadata: Record<string, unknown> } | null);
+
+  if (!row) {
+    return null;
+  }
+
+  const contexts = await getTaskerStreakContexts(supabase, [row.tasker_id]);
+  const context = contexts.get(row.tasker_id);
+
+  return {
+    ...row,
+    tasker_display_name: context?.displayName ?? `Tasker ${row.tasker_id.slice(0, 8)}`,
+    tasker_current_streak_days: context?.currentStreak ?? 0,
+    tasker_potential_streak_days: context?.potentialStreak ?? 0,
+  };
 }
 
 export async function getAdminDashboard(): Promise<AdminDashboardData> {

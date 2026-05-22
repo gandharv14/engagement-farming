@@ -56,6 +56,7 @@ test.describe("tasker surfaces", () => {
       await page.getByLabel("Taiga problem link").fill(`https://taiga.example.com/project/live-compare/us/${prefix}`);
       await page.getByRole("button", { name: "Record submitted row" }).click();
       await expect(page.getByText(/submissions logged today\./)).toBeVisible();
+      await expect(page.getByText(/Potential streak if pending rows pass:/)).toBeVisible();
 
       await cleanupByPrefix(prefix);
     });
@@ -76,6 +77,7 @@ test.describe("reviewer flow", () => {
     await page.goto("/review/queue");
     await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Streak if accepted" })).toBeVisible();
     const queuedRow = page.getByRole("row", { name: /Debugging.*4,242/ });
     await expect(queuedRow).toBeVisible();
     await queuedRow.getByRole("link", { name: "Open" }).click();

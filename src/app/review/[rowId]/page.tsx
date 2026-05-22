@@ -24,6 +24,7 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
   const problemId = String(row.metadata.problem_id ?? row.metadata.external_row_id ?? "Not set");
   const taigaProblemUrl =
     typeof row.metadata.taiga_problem_url === "string" && row.metadata.taiga_problem_url ? row.metadata.taiga_problem_url : null;
+  const potentialDelta = Math.max(0, row.tasker_potential_streak_days - row.tasker_current_streak_days);
 
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Reviewer"}>
@@ -38,10 +39,20 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
             <CardTitle>Submission Metadata</CardTitle>
             <CardDescription>{row.id}</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <CardContent className="grid gap-3 md:grid-cols-3 xl:grid-cols-7">
+            <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
+              <p className="text-xs text-muted-foreground">Tasker</p>
+              <p className="font-mono text-sm">{row.tasker_display_name}</p>
+            </div>
             <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
               <p className="text-xs text-muted-foreground">Submitted</p>
               <p className="font-mono text-sm">{new Date(row.submitted_at).toLocaleString()}</p>
+            </div>
+            <div className="rounded-2xl border border-arena-gold/25 bg-arena-gold/10 p-3">
+              <p className="text-xs text-muted-foreground">Potential streak if accepted</p>
+              <p className="font-mono text-sm text-arena-gold">
+                {row.tasker_potential_streak_days} days{potentialDelta ? ` (+${potentialDelta})` : ""}
+              </p>
             </div>
             <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
               <p className="text-xs text-muted-foreground">Problem ID</p>

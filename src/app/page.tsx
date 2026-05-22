@@ -57,9 +57,24 @@ export default async function Home() {
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard title="Accepted rows" value={data.acceptedRows} helper="Clean + accepted with edits" icon={Trophy} />
-          <StatCard title="Pending review" value={data.pendingRows} helper="FIFO reviewer queue" icon={Hourglass} />
-          <StatCard title="Current streak" value={`${data.currentStreak} days`} helper="Today matters" icon={Flame} />
-          <StatCard title="Milestones" value={`${data.milestonesUnlocked} / 3`} helper="Goodie tiers unlocked" icon={Gift} />
+          <StatCard
+            title="Pending review"
+            value={data.pendingRows}
+            helper={data.pendingRows ? `Potential: ${data.potentialStreak} days` : "FIFO reviewer queue"}
+            icon={Hourglass}
+          />
+          <StatCard
+            title="Current streak"
+            value={`${data.currentStreak} days`}
+            helper={data.pendingStreakDelta ? `+${data.pendingStreakDelta} pending` : "Accepted submissions"}
+            icon={Flame}
+          />
+          <StatCard
+            title="Milestones"
+            value={`${data.milestonesUnlocked} / ${data.milestoneRoadmap.length}`}
+            helper="Tier roadmap unlocked"
+            icon={Gift}
+          />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -75,21 +90,95 @@ export default async function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {data.nextMilestone ? (
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span>
-                      Next milestone: {data.nextMilestone.tierLabel} at {data.nextMilestone.threshold} rows
-                    </span>
-                    <span>{data.nextMilestone.progress}%</span>
+              {data.milestoneRoadmap.length ? (
+                <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4">
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-mono text-xs uppercase tracking-[0.18em] text-arena-cyan">Milestone Roadmap</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        You have {data.acceptedRows.toLocaleString()} accepted rows. Each tier unlocks when you hit its threshold.
+                      </p>
+                    </div>
+                    <Badge variant="outline">
+                      {data.milestonesUnlocked} / {data.milestoneRoadmap.length} unlocked
+                    </Badge>
                   </div>
-                  <Progress value={data.nextMilestone.progress} />
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {data.milestoneRoadmap.map((milestone) => {
+                      const statusLabel =
+                        milestone.status === "unlocked" ? "Unlocked" : milestone.status === "current" ? "You are here" : "Locked";
+
+                      return (
+                        <div
+                          key={milestone.tierLabel}
+                          className={`rounded-2xl border p-4 ${
+                            milestone.status === "current"
+                              ? "border-arena-gold/40 bg-arena-gold/10"
+                              : milestone.status === "unlocked"
+                                ? "border-arena-cyan/25 bg-background/50"
+                                : "border-border bg-background/35"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">{milestone.tierLabel}</p>
+                              <p className="mt-1 text-2xl font-semibold">{milestone.threshold.toLocaleString()} rows</p>
+                            </div>
+                            <Badge
+                              variant={
+                                milestone.status === "unlocked" ? "secondary" : milestone.status === "current" ? "default" : "outline"
+                              }
+                            >
+                              {statusLabel}
+                            </Badge>
+                          </div>
+                          <Progress value={milestone.progress} className="mt-4" />
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {milestone.status === "unlocked"
+                              ? "Tier unlocked."
+                              : `${milestone.remainingRows.toLocaleString()} accepted rows to unlock.`}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                  All configured milestones are unlocked. Nice sprint.
+                  Milestone tiers are not configured yet.
                 </p>
               )}
+
+              {data.pendingRows ? (
+                <div className="rounded-2xl border border-arena-gold/25 bg-arena-gold/10 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-mono text-xs uppercase tracking-[0.18em] text-arena-gold">Pending Upside</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Potential streak if pending rows pass:{" "}
+                        <span className="font-mono font-medium text-arena-gold">{data.potentialStreak} days</span>
+                      </p>
+                    </div>
+                    <Badge variant="outline">
+                      {data.pendingStreakDelta ? `+${data.pendingStreakDelta} possible` : "Awaiting review"}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    {data.pendingRowSummaries.map((row) => (
+                      <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-background/35 p-3 text-sm">
+                        <div>
+                          <p className="font-mono text-foreground">{row.problemId}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Submitted {new Date(row.submitted_at).toLocaleString()} - {row.taskType}
+                          </p>
+                        </div>
+                        <span className="font-mono text-xs text-arena-cyan">{row.tokenCount.toLocaleString()} tokens</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <form
                 action={submitRow}
