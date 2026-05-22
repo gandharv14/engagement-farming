@@ -67,7 +67,7 @@ export function AppShell({
   return (
     <div className="arena-bg relative min-h-screen overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-arena-cyan/70 to-transparent" />
-      <header className="sticky top-0 z-20 border-b border-arena-cyan/20 bg-background/78 shadow-[0_0_48px_oklch(0.79_0.18_205/0.08)] backdrop-blur-xl">
+      <header className="sticky top-0 z-20 border-b border-arena-cyan/20 bg-background/78 shadow-[0_0_48px_#a3b18a14] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href={homeHref} className="flex items-center gap-2">
             <div className="arena-glow flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-arena-cyan via-arena-blue to-arena-pink text-primary-foreground">
