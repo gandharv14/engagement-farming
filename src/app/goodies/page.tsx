@@ -7,17 +7,17 @@ import { RealtimeRefresh } from "@/components/app/realtime-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireRole } from "@/lib/auth";
+import { getTaskerShellProps, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { getGoodies } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function GoodiesPage() {
-  const user = await requireRole("tasker");
-  const data = await getGoodies(user.sub);
+  const context = await requireTaskerGameContext();
+  const data = await getGoodies(context.tasker.auth0_sub);
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Tasker"}>
+    <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "milestone_achievements" }, { table: "goodies" }]} />
       <div className="space-y-6">
         <div>

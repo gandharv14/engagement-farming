@@ -4,17 +4,17 @@ import { AppShell } from "@/components/app/app-shell";
 import { RealtimeRefresh } from "@/components/app/realtime-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireRole } from "@/lib/auth";
+import { getTaskerShellProps, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { getGuildData } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function GuildPage() {
-  const user = await requireRole("tasker");
-  const data = await getGuildData(user.sub);
+  const context = await requireTaskerGameContext();
+  const data = await getGuildData(context.tasker.auth0_sub);
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Tasker"}>
+    <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "rows" }, { table: "guild_memberships" }]} />
       <div className="space-y-6">
         <div>

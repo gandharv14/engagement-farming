@@ -2,17 +2,17 @@ import { AppShell } from "@/components/app/app-shell";
 import { RealtimeRefresh } from "@/components/app/realtime-refresh";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requireRole } from "@/lib/auth";
+import { getTaskerShellProps, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { formatCurrency, formatSource, getEarnings } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function EarningsPage() {
-  const user = await requireRole("tasker");
-  const data = await getEarnings(user.sub);
+  const context = await requireTaskerGameContext();
+  const data = await getEarnings(context.tasker.auth0_sub);
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Tasker"}>
+    <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "earnings" }]} />
       <div className="space-y-6">
         <div>

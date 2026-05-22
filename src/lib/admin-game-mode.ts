@@ -1,0 +1,245 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+
+import { requireRole, type AppSessionUser } from "@/lib/auth";
+import { type AppUserRow, getMyUserRow } from "@/lib/data";
+import { createSupabaseServerClient } from "@/lib/supabase";
+
+const adminGameModeCookie = "admin-game-mode";
+const ownGameModeValue = "own";
+const impersonatePrefix = "tasker:";
+
+type AdminGameModeTarget =
+  | { mode: "own" }
+  | {
+      mode: "impersonation";
+      taskerId: string;
+    };
+
+export type TaskerGameContext = {
+  sessionUser: AppSessionUser;
+  tasker: AppUserRow;
+  isAdminGameMode: boolean;
+  gameModeLabel: string | null;
+};
+
+export type AdminGameModeStatus = {
+  mode: "own" | "impersonation";
+  target: AppUserRow;
+};
+
+export type TaskerOption = {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+};
+
+export function getAppUserDisplayName(user: Pick<AppUserRow, "display_name" | "email">, fallback = "Tasker") {
+  return user.display_name ?? user.email ?? fallback;
+}
+
+export function getTaskerShellProps(context: TaskerGameContext) {
+  return {
+    role: context.sessionUser.role,
+    name: context.sessionUser.name ?? context.sessionUser.email ?? getAppUserDisplayName(context.tasker),
+    navigationRole: "tasker" as const,
+    gameMode: context.isAdminGameMode
+      ? {
+          label: context.gameModeLabel ?? "Playing",
+          targetName: getAppUserDisplayName(context.tasker),
+        }
+      : undefined,
+  };
+}
+
+const cookieOptions = {
+  httpOnly: true,
+  maxAge: 60 * 60 * 8,
+  path: "/",
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+};
+
+export async function requireTaskerGameContext(): Promise<TaskerGameContext> {
+  const sessionUser = await requireRole(["tasker", "admin"]);
+
+  if (sessionUser.role === "tasker") {
+    const tasker = await getMyUserRow(sessionUser.sub);
+
+    if (!tasker) {
+      redirect("/login");
+    }
+
+    return {
+      sessionUser,
+      tasker,
+      isAdminGameMode: false,
+      gameModeLabel: null,
+    };
+  }
+
+  const admin = await getMyUserRow(sessionUser.sub);
+
+  if (!admin) {
+    redirect("/admin");
+  }
+
+  const status = await getAdminGameModeStatus(admin);
+
+  if (!status) {
+    redirect("/admin");
+  }
+
+  return {
+    sessionUser,
+    tasker: status.target,
+    isAdminGameMode: true,
+    gameModeLabel: status.mode === "own" ? "Playing" : "Impersonating",
+  };
+}
+
+export async function getAdminGameModeStatus(admin: AppUserRow): Promise<AdminGameModeStatus | null> {
+  const target = await readAdminGameModeCookie();
+
+  if (!target) {
+    return null;
+  }
+
+  if (target.mode === "own") {
+    const shadowTasker = await getOrCreateAdminShadowTasker(admin);
+    return shadowTasker ? { mode: "own", target: shadowTasker } : null;
+  }
+
+  const tasker = await getTaskerById(target.taskerId);
+  return tasker ? { mode: "impersonation", target: tasker } : null;
+}
+
+export async function setOwnAdminGameModeCookie() {
+  const cookieStore = await cookies();
+  cookieStore.set(adminGameModeCookie, ownGameModeValue, cookieOptions);
+}
+
+export async function setTaskerImpersonationCookie(taskerId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(adminGameModeCookie, `${impersonatePrefix}${taskerId}`, cookieOptions);
+}
+
+export async function clearAdminGameModeCookie() {
+  const cookieStore = await cookies();
+  cookieStore.delete(adminGameModeCookie);
+}
+
+export async function getOrCreateAdminShadowTasker(admin: AppUserRow): Promise<AppUserRow | null> {
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    return {
+      id: "00000000-0000-0000-0000-000000000000",
+      auth0_sub: `admin-game|${admin.id}`,
+      email: admin.email,
+      display_name: getShadowDisplayName(admin),
+      role: "tasker",
+      admin_game_owner_id: admin.id,
+    };
+  }
+
+  const select = "id, auth0_sub, email, display_name, role, admin_game_owner_id";
+  const { data: existing } = await supabase
+    .from("users")
+    .select(select)
+    .eq("admin_game_owner_id", admin.id)
+    .maybeSingle();
+
+  if (existing) {
+    return existing as AppUserRow;
+  }
+
+  const { data, error } = await supabase
+    .from("users")
+    .upsert(
+      {
+        auth0_sub: `admin-game|${admin.id}`,
+        email: admin.email ? toShadowEmail(admin.email) : null,
+        display_name: getShadowDisplayName(admin),
+        role: "tasker",
+        admin_game_owner_id: admin.id,
+      },
+      { onConflict: "auth0_sub" },
+    )
+    .select(select)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as AppUserRow;
+}
+
+export async function getTaskerById(taskerId: string): Promise<AppUserRow | null> {
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data } = await supabase
+    .from("users")
+    .select("id, auth0_sub, email, display_name, role, admin_game_owner_id")
+    .eq("id", taskerId)
+    .eq("role", "tasker")
+    .maybeSingle();
+
+  return (data as AppUserRow | null) ?? null;
+}
+
+export async function getTaskerOptionsForAdmin(): Promise<TaskerOption[]> {
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data } = await supabase
+    .from("users")
+    .select("id, display_name, email")
+    .eq("role", "tasker")
+    .is("admin_game_owner_id", null)
+    .order("display_name", { ascending: true });
+
+  return (data ?? []) as TaskerOption[];
+}
+
+function getShadowDisplayName(admin: AppUserRow) {
+  return `${getAppUserDisplayName(admin, "Admin")} (Game Mode)`;
+}
+
+function toShadowEmail(email: string) {
+  const [localPart, domain] = email.split("@");
+
+  if (!localPart || !domain) {
+    return null;
+  }
+
+  return `${localPart}+game-mode@${domain}`;
+}
+
+async function readAdminGameModeCookie(): Promise<AdminGameModeTarget | null> {
+  const cookieStore = await cookies();
+  const value = cookieStore.get(adminGameModeCookie)?.value;
+
+  if (!value) {
+    return null;
+  }
+
+  if (value === ownGameModeValue) {
+    return { mode: "own" };
+  }
+
+  if (value.startsWith(impersonatePrefix)) {
+    const taskerId = value.slice(impersonatePrefix.length);
+    return taskerId ? { mode: "impersonation", taskerId } : null;
+  }
+
+  return null;
+}

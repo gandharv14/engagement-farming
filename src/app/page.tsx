@@ -1,5 +1,4 @@
 import { Flame, Gift, Hourglass, Target, Trophy } from "lucide-react";
-import { redirect } from "next/navigation";
 
 import { submitRow } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
@@ -11,26 +10,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { requireRole } from "@/lib/auth";
+import { getTaskerShellProps, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { formatCurrency, formatSource, getTaskerDashboard } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const user = await requireRole(["tasker", "reviewer", "admin"]);
-
-  if (user.role === "admin") {
-    redirect("/admin");
-  }
-
-  if (user.role === "reviewer") {
-    redirect("/review/queue");
-  }
-
-  const data = await getTaskerDashboard(user.sub);
+  const context = await requireTaskerGameContext();
+  const data = await getTaskerDashboard(context.tasker.auth0_sub);
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Tasker"}>
+    <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "rows" }, { table: "earnings" }, { table: "streaks" }]} />
       <div className="space-y-6">
         <section className="rounded-3xl border bg-card p-6">

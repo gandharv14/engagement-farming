@@ -8,6 +8,7 @@ export type AppUserRow = {
   email: string | null;
   display_name: string | null;
   role: "tasker" | "reviewer" | "admin";
+  admin_game_owner_id?: string | null;
 };
 
 export type SprintPublicConfig = {
@@ -113,12 +114,13 @@ export async function getMyUserRow(auth0Sub: string): Promise<AppUserRow | null>
       email: "local@example.com",
       display_name: "Local Preview",
       role: "tasker",
+      admin_game_owner_id: null,
     };
   }
 
   const { data } = await supabase
     .from("users")
-    .select("id, auth0_sub, email, display_name, role")
+    .select("id, auth0_sub, email, display_name, role, admin_game_owner_id")
     .eq("auth0_sub", auth0Sub)
     .maybeSingle();
 

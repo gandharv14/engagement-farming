@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { requireRole } from "@/lib/auth";
 import { getMyUserRow } from "@/lib/data";
 import { createSupabaseServerClient } from "@/lib/supabase";
@@ -13,9 +14,9 @@ function formString(formData: FormData, key: string) {
 }
 
 export async function submitRow(formData: FormData) {
-  const user = await requireRole("tasker");
+  const context = await requireTaskerGameContext();
   const supabase = await createSupabaseServerClient();
-  const userRow = await getMyUserRow(user.sub);
+  const userRow = context.tasker;
 
   if (!supabase || !userRow) {
     throw new Error("Supabase is not configured.");
@@ -85,9 +86,9 @@ export async function reviewRow(rowId: string, formData: FormData) {
 }
 
 export async function selectGoodie(achievementId: string, goodieId: string) {
-  const user = await requireRole("tasker");
+  const context = await requireTaskerGameContext();
   const supabase = await createSupabaseServerClient();
-  const userRow = await getMyUserRow(user.sub);
+  const userRow = context.tasker;
 
   if (!supabase || !userRow) {
     throw new Error("Supabase is not configured.");

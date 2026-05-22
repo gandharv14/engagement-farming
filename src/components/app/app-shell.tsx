@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Flame, Gift, LayoutDashboard, LogOut, Medal, ShieldCheck, Users } from "lucide-react";
+import { Flame, Gamepad2, Gift, LayoutDashboard, LogOut, Medal, ShieldCheck, Users } from "lucide-react";
 
+import { exitAdminGameMode } from "@/app/admin/game-mode/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -21,6 +22,7 @@ const reviewerLinks = [
 
 const adminLinks = [
   { href: "/admin", label: "Operations", icon: LayoutDashboard },
+  { href: "/admin/game-mode", label: "Game Mode", icon: Gamepad2 },
   { href: "/admin/taskers", label: "Taskers", icon: Users },
   { href: "/admin/reviewers", label: "Reviewers", icon: ShieldCheck },
   { href: "/admin/config", label: "Config", icon: Flame },
@@ -44,17 +46,27 @@ function linksForRole(role: AppRole) {
 export function AppShell({
   role,
   name,
+  navigationRole,
+  gameMode,
   children,
 }: {
   role: AppRole;
   name: string;
+  navigationRole?: AppRole;
+  gameMode?: {
+    label: string;
+    targetName: string;
+  };
   children: React.ReactNode;
 }) {
+  const activeNavigationRole = navigationRole ?? role;
+  const homeHref = activeNavigationRole === "admin" ? "/admin" : activeNavigationRole === "reviewer" ? "/review/queue" : "/";
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link href={role === "admin" ? "/admin" : role === "reviewer" ? "/review/queue" : "/"} className="flex items-center gap-2">
+          <Link href={homeHref} className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Flame className="h-5 w-5" />
             </div>
@@ -67,6 +79,7 @@ export function AppShell({
             <Badge variant="secondary" className="capitalize">
               {role}
             </Badge>
+            {gameMode ? <Badge>Game mode</Badge> : null}
             <span className="hidden text-sm text-muted-foreground sm:inline">{name}</span>
             <Button asChild variant="ghost" size="sm">
               <a href="/api/auth/logout">
@@ -77,10 +90,32 @@ export function AppShell({
           </div>
         </div>
       </header>
+      {gameMode ? (
+        <div className="border-b bg-muted/40">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div>
+              <span className="font-medium">Admin game mode:</span>{" "}
+              <span className="text-muted-foreground">
+                {gameMode.label} as {gameMode.targetName}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="secondary">
+                <Link href="/admin">Admin Ops</Link>
+              </Button>
+              <form action={exitAdminGameMode}>
+                <Button size="sm" variant="outline" type="submit">
+                  Exit Game Mode
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[220px_1fr]">
         <aside className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
           <nav className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
-            {linksForRole(role).map((link) => {
+            {linksForRole(activeNavigationRole).map((link) => {
               const Icon = link.icon;
 
               return (

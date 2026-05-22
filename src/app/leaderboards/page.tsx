@@ -5,7 +5,7 @@ import { RealtimeRefresh } from "@/components/app/realtime-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { requireRole } from "@/lib/auth";
+import { getTaskerShellProps, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { getLeaderboards, type LeaderboardEntry } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
@@ -39,11 +39,11 @@ function LeaderboardCard({ title, entries }: { title: string; entries: Leaderboa
 }
 
 export default async function LeaderboardsPage() {
-  const user = await requireRole("tasker");
+  const context = await requireTaskerGameContext();
   const boards = await getLeaderboards();
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Tasker"}>
+    <AppShell {...getTaskerShellProps(context)}>
       <RealtimeRefresh subscriptions={[{ table: "rows" }, { table: "streaks" }]} />
       <div className="space-y-6">
         <div>
