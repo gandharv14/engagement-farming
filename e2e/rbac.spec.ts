@@ -87,9 +87,11 @@ test.describe("admin game mode", () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByText(`Impersonating as ${taskerName}`)).toBeVisible();
 
-    await page.getByLabel("External row ID").fill(`${prefix}-row`);
-    await page.getByLabel("Task type").fill("e2e");
+    await page.getByLabel("Problem ID").fill(`${prefix}-row`);
+    await page.getByRole("combobox", { name: "Task type" }).click();
+    await page.getByRole("option", { name: "Debugging" }).click();
     await page.getByLabel("Token count").fill("9876");
+    await page.getByLabel("Taiga problem link").fill(`https://taiga.example.com/project/live-compare/us/${prefix}`);
     await page.getByRole("button", { name: "Record submitted row" }).click();
 
     await expect.poll(async () => (await getRowsByPrefix(prefix)).map((row) => row.tasker_id)).toEqual([tasker.id]);

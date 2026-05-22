@@ -21,6 +21,10 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
     notFound();
   }
 
+  const problemId = String(row.metadata.problem_id ?? row.metadata.external_row_id ?? "Not set");
+  const taigaProblemUrl =
+    typeof row.metadata.taiga_problem_url === "string" && row.metadata.taiga_problem_url ? row.metadata.taiga_problem_url : null;
+
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Reviewer"}>
       <div className="space-y-6">
@@ -34,10 +38,14 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
             <CardTitle>Submission Metadata</CardTitle>
             <CardDescription>{row.id}</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3">
+          <CardContent className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
             <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
               <p className="text-xs text-muted-foreground">Submitted</p>
               <p className="font-mono text-sm">{new Date(row.submitted_at).toLocaleString()}</p>
+            </div>
+            <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
+              <p className="text-xs text-muted-foreground">Problem ID</p>
+              <p className="font-mono text-sm">{problemId}</p>
             </div>
             <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
               <p className="text-xs text-muted-foreground">Task type</p>
@@ -46,6 +54,16 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
             <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
               <p className="text-xs text-muted-foreground">Token count</p>
               <p className="font-mono text-sm text-arena-cyan">{Number(row.metadata.token_count ?? 0).toLocaleString()}</p>
+            </div>
+            <div className="rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-3">
+              <p className="text-xs text-muted-foreground">Taiga problem</p>
+              {taigaProblemUrl ? (
+                <a className="font-mono text-sm text-arena-cyan underline-offset-4 hover:underline" href={taigaProblemUrl}>
+                  Open link
+                </a>
+              ) : (
+                <p className="font-mono text-sm">Not set</p>
+              )}
             </div>
           </CardContent>
         </Card>

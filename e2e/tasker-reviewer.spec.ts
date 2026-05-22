@@ -49,11 +49,13 @@ test.describe("tasker surfaces", () => {
 
       await page.goto("/");
       await dismissRulesModal(page);
-      await page.getByLabel("External row ID").fill(`${prefix}-row`);
-      await page.getByLabel("Task type").fill("e2e");
+      await page.getByLabel("Problem ID").fill(`${prefix}-row`);
+      await page.getByRole("combobox", { name: "Task type" }).click();
+      await page.getByRole("option", { name: "Debugging" }).click();
       await page.getByLabel("Token count").fill("3210");
+      await page.getByLabel("Taiga problem link").fill(`https://taiga.example.com/project/live-compare/us/${prefix}`);
       await page.getByRole("button", { name: "Record submitted row" }).click();
-      await expect(page.getByText("You have a submission logged today.")).toBeVisible();
+      await expect(page.getByText(/submissions logged today\./)).toBeVisible();
 
       await cleanupByPrefix(prefix);
     });
@@ -74,7 +76,7 @@ test.describe("reviewer flow", () => {
     await page.goto("/review/queue");
     await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
-    const queuedRow = page.getByRole("row", { name: /e2e.*4,242/ });
+    const queuedRow = page.getByRole("row", { name: /Debugging.*4,242/ });
     await expect(queuedRow).toBeVisible();
     await queuedRow.getByRole("link", { name: "Open" }).click();
 

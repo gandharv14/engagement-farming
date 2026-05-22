@@ -46,6 +46,7 @@ export default async function ReviewQueuePage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Submitted</TableHead>
+                  <TableHead>Problem ID</TableHead>
                   <TableHead>Task type</TableHead>
                   <TableHead>Token count</TableHead>
                   <TableHead className="text-right">Action</TableHead>
@@ -56,6 +57,7 @@ export default async function ReviewQueuePage() {
                   rows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>{new Date(row.submitted_at).toLocaleString()}</TableCell>
+                      <TableCell>{String(row.metadata.problem_id ?? row.metadata.external_row_id ?? row.id)}</TableCell>
                       <TableCell>{String(row.metadata.task_type ?? "long-horizon")}</TableCell>
                       <TableCell>{Number(row.metadata.token_count ?? 0).toLocaleString()}</TableCell>
                       <TableCell className="text-right">
@@ -67,7 +69,7 @@ export default async function ReviewQueuePage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       Queue is clear. New submissions will land here automatically.
                     </TableCell>
                   </TableRow>

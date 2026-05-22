@@ -89,8 +89,13 @@ export async function getUserByEmail(email: string): Promise<E2EUser> {
 
 export async function cleanupByPrefix(prefix: string) {
   const supabase = createE2ESupabaseClient();
-  const { data: rows } = await supabase.from("rows").select("id").like("metadata->>external_row_id", `${prefix}%`);
-  const rowIds = ((rows ?? []) as { id: string }[]).map((row) => row.id);
+  const [{ data: problemRows }, { data: externalRows }] = await Promise.all([
+    supabase.from("rows").select("id").like("metadata->>problem_id", `${prefix}%`),
+    supabase.from("rows").select("id").like("metadata->>external_row_id", `${prefix}%`),
+  ]);
+  const rowIds = Array.from(
+    new Set([...(problemRows ?? []), ...(externalRows ?? [])].map((row: { id: string }) => row.id)),
+  );
 
   if (rowIds.length) {
     await supabase.from("row_reviews").delete().in("row_id", rowIds);
@@ -130,9 +135,10 @@ export async function seedAcceptedRowsForTasker(taskerEmail: string, prefix: str
     tasker_id: tasker.id,
     status: "pending_review",
     metadata: {
-      external_row_id: `${prefix}-accepted-${index + 1}`,
-      task_type: "e2e",
+      problem_id: `${prefix}-accepted-${index + 1}`,
+      task_type: "Debugging",
       token_count: 1000 + index,
+      taiga_problem_url: `https://taiga.example.com/project/live-compare/us/${index + 1}`,
     },
   }));
   const { data, error } = await supabase.from("rows").insert(rows).select("id");
@@ -161,9 +167,10 @@ export async function seedPendingRowForTasker(taskerEmail: string, prefix: strin
       tasker_id: tasker.id,
       status: "pending_review",
       metadata: {
-        external_row_id: `${prefix}-pending`,
-        task_type: "e2e",
+        problem_id: `${prefix}-pending`,
+        task_type: "Debugging",
         token_count: 4242,
+        taiga_problem_url: "https://taiga.example.com/project/live-compare/us/pending",
       },
     })
     .select("id")
@@ -178,16 +185,27 @@ export async function seedPendingRowForTasker(taskerEmail: string, prefix: strin
 
 export async function getRowsByPrefix(prefix: string) {
   const supabase = createE2ESupabaseClient();
-  const { data, error } = await supabase
-    .from("rows")
-    .select("id, tasker_id, status, metadata")
-    .like("metadata->>external_row_id", `${prefix}%`);
+  const [{ data: problemRows, error: problemError }, { data: externalRows, error: externalError }] = await Promise.all([
+    supabase.from("rows").select("id, tasker_id, status, metadata").like("metadata->>problem_id", `${prefix}%`),
+    supabase.from("rows").select("id, tasker_id, status, metadata").like("metadata->>external_row_id", `${prefix}%`),
+  ]);
 
-  if (error) {
-    throw new Error(error.message);
+  if (problemError || externalError) {
+    throw new Error((problemError ?? externalError)?.message);
   }
 
-  return (data ?? []) as { id: string; tasker_id: string; status: string; metadata: Record<string, unknown> }[];
+  const rowsById = new Map<string, { id: string; tasker_id: string; status: string; metadata: Record<string, unknown> }>();
+
+  for (const row of [...(problemRows ?? []), ...(externalRows ?? [])] as {
+    id: string;
+    tasker_id: string;
+    status: string;
+    metadata: Record<string, unknown>;
+  }[]) {
+    rowsById.set(row.id, row);
+  }
+
+  return Array.from(rowsById.values());
 }
 
 export async function getRowReview(rowId: string) {

@@ -10,8 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getTaskerShellProps, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { formatCurrency, formatSource, getTaskerDashboard } from "@/lib/data";
+import { TASK_TYPE_OPTIONS } from "@/lib/task-types";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +44,7 @@ export default async function Home() {
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
                 Queue a clean row, defend your cadence, and push the arena toward{" "}
                 <span className="font-mono text-arena-gold">{data.config.collective_goal_rows.toLocaleString()}</span>{" "}
-                accepted long-horizon rows.
+                accepted problems.
               </p>
             </div>
             <div className="arena-glow rounded-3xl border border-arena-gold/30 bg-arena-gold/10 p-5 text-center">
@@ -89,21 +91,39 @@ export default async function Home() {
                 </p>
               )}
 
-              <form action={submitRow} className="grid gap-3 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4 md:grid-cols-3">
+              <form
+                action={submitRow}
+                className="grid gap-3 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4 md:grid-cols-2 xl:grid-cols-4"
+              >
                 <div className="space-y-2">
-                  <Label htmlFor="externalRowId">External row ID</Label>
-                  <Input id="externalRowId" name="externalRowId" placeholder="Optional" />
+                  <Label htmlFor="problemId">Problem ID</Label>
+                  <Input id="problemId" name="problemId" placeholder="live-compare-**" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="taskType">Task type</Label>
-                  <Input id="taskType" name="taskType" defaultValue="long-horizon" />
+                  <Select name="taskType" required>
+                    <SelectTrigger id="taskType" className="w-full bg-background/35 font-mono">
+                      <SelectValue placeholder="Select task type" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      {TASK_TYPE_OPTIONS.map((taskType) => (
+                        <SelectItem key={taskType} value={taskType}>
+                          {taskType}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="tokenCount">Token count</Label>
-                  <Input id="tokenCount" name="tokenCount" type="number" min="0" placeholder="1000000" />
+                  <Input id="tokenCount" name="tokenCount" type="number" min="0" placeholder="1000000" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="taigaProblemUrl">Taiga problem link</Label>
+                  <Input id="taigaProblemUrl" name="taigaProblemUrl" type="url" placeholder="https://taiga..." required />
                 </div>
                 <Button
-                  className="md:col-span-3"
+                  className="md:col-span-2 xl:col-span-4"
                   size="lg"
                   type="submit"
                   disabled={data.submissionsToday >= data.maxDailySubmissions}

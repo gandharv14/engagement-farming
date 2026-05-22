@@ -15,10 +15,21 @@ import {
   parseDateOnly,
 } from "@/lib/sprint-config";
 import { createSupabaseServerClient } from "@/lib/supabase";
+import { isTaskType } from "@/lib/task-types";
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
+}
+
+function requiredFormString(formData: FormData, key: string, label: string) {
+  const value = formString(formData, key).trim();
+
+  if (!value) {
+    throw new Error(`${label} is required.`);
+  }
+
+  return value;
 }
 
 function parsePositiveIntegerInput(value: string, label: string) {
@@ -79,12 +90,30 @@ export async function submitRow(formData: FormData) {
     throw new Error("Supabase is not configured.");
   }
 
-  const tokenCount = Number(formString(formData, "tokenCount") || "0");
-  const taskType = formString(formData, "taskType") || "long-horizon";
+  const problemId = requiredFormString(formData, "problemId", "Problem ID");
+  const taskType = requiredFormString(formData, "taskType", "Task type");
+  const tokenCount = parseNonNegativeNumberInput(requiredFormString(formData, "tokenCount", "Token count"), "Token count");
+  const taigaProblemUrl = requiredFormString(formData, "taigaProblemUrl", "Taiga problem link");
   const now = new Date();
   const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const tomorrowStart = new Date(todayStart);
   tomorrowStart.setUTCDate(todayStart.getUTCDate() + 1);
+
+  if (!isTaskType(taskType)) {
+    throw new Error("Task type must be one of the configured options.");
+  }
+
+  let taigaUrl: URL;
+
+  try {
+    taigaUrl = new URL(taigaProblemUrl);
+  } catch {
+    throw new Error("Taiga problem link must be a valid URL.");
+  }
+
+  if (!["http:", "https:"].includes(taigaUrl.protocol)) {
+    throw new Error("Taiga problem link must be an HTTP or HTTPS URL.");
+  }
 
   const { count: submissionsToday, error: countError } = await supabase
     .from("rows")
@@ -105,9 +134,10 @@ export async function submitRow(formData: FormData) {
     tasker_id: userRow.id,
     status: "pending_review",
     metadata: {
-      token_count: Number.isFinite(tokenCount) ? tokenCount : 0,
+      problem_id: problemId,
       task_type: taskType,
-      external_row_id: formString(formData, "externalRowId") || null,
+      token_count: tokenCount,
+      taiga_problem_url: taigaUrl.toString(),
     },
   });
 
