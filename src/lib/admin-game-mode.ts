@@ -7,13 +7,18 @@ import { createSupabaseServerClient } from "@/lib/supabase";
 
 const adminGameModeCookie = "admin-game-mode";
 const ownGameModeValue = "own";
-const impersonatePrefix = "tasker:";
+const taskerImpersonatePrefix = "tasker:";
+const reviewerImpersonatePrefix = "reviewer:";
 
 export type AdminGameModeTarget =
   | { mode: "own" }
   | {
-      mode: "impersonation";
+      mode: "tasker";
       taskerId: string;
+    }
+  | {
+      mode: "reviewer";
+      reviewerId: string;
     };
 
 export type TaskerGameContext = {
@@ -23,10 +28,24 @@ export type TaskerGameContext = {
   gameModeLabel: string | null;
 };
 
-export type AdminGameModeStatus = {
-  mode: "own" | "impersonation";
-  target: AppUserRow;
+export type ReviewerGameContext = {
+  sessionUser: AppSessionUser;
+  reviewer: AppUserRow;
+  isAdminGameMode: boolean;
+  gameModeLabel: string | null;
 };
+
+export type AdminGameModeStatus =
+  | {
+      mode: "own" | "tasker";
+      role: "tasker";
+      target: AppUserRow;
+    }
+  | {
+      mode: "reviewer";
+      role: "reviewer";
+      target: AppUserRow;
+    };
 
 export type TaskerOption = {
   id: string;
@@ -48,6 +67,20 @@ export function getTaskerShellProps(context: TaskerGameContext) {
       ? {
           label: context.gameModeLabel ?? "Playing",
           targetName: getAppUserDisplayName(context.tasker),
+        }
+      : undefined,
+  };
+}
+
+export function getReviewerShellProps(context: ReviewerGameContext) {
+  return {
+    role: context.sessionUser.role,
+    name: context.sessionUser.name ?? context.sessionUser.email ?? getAppUserDisplayName(context.reviewer, "Reviewer"),
+    navigationRole: "reviewer" as const,
+    gameMode: context.isAdminGameMode
+      ? {
+          label: context.gameModeLabel ?? "Reviewing",
+          targetName: getAppUserDisplayName(context.reviewer, "Reviewer"),
         }
       : undefined,
   };
@@ -87,7 +120,7 @@ export async function requireTaskerGameContext(): Promise<TaskerGameContext> {
 
   const status = await getAdminGameModeStatus(admin);
 
-  if (!status) {
+  if (!status || status.role !== "tasker") {
     redirect("/admin");
   }
 
@@ -96,6 +129,44 @@ export async function requireTaskerGameContext(): Promise<TaskerGameContext> {
     tasker: status.target,
     isAdminGameMode: true,
     gameModeLabel: status.mode === "own" ? "Playing" : "Impersonating",
+  };
+}
+
+export async function requireReviewerGameContext(): Promise<ReviewerGameContext> {
+  const sessionUser = await requireRole(["reviewer", "admin"]);
+
+  if (sessionUser.role === "reviewer") {
+    const reviewer = await getMyUserRow(sessionUser.sub);
+
+    if (!reviewer) {
+      redirect("/login");
+    }
+
+    return {
+      sessionUser,
+      reviewer,
+      isAdminGameMode: false,
+      gameModeLabel: null,
+    };
+  }
+
+  const admin = await getMyUserRow(sessionUser.sub);
+
+  if (!admin) {
+    redirect("/admin");
+  }
+
+  const status = await getAdminGameModeStatus(admin);
+
+  if (!status || status.role !== "reviewer") {
+    redirect("/admin/game-mode");
+  }
+
+  return {
+    sessionUser,
+    reviewer: status.target,
+    isAdminGameMode: true,
+    gameModeLabel: "Impersonating",
   };
 }
 
@@ -108,11 +179,16 @@ export async function getAdminGameModeStatus(admin: AppUserRow): Promise<AdminGa
 
   if (target.mode === "own") {
     const shadowTasker = await getOrCreateAdminShadowTasker(admin);
-    return shadowTasker ? { mode: "own", target: shadowTasker } : null;
+    return shadowTasker ? { mode: "own", role: "tasker", target: shadowTasker } : null;
   }
 
-  const tasker = await getTaskerById(target.taskerId);
-  return tasker ? { mode: "impersonation", target: tasker } : null;
+  if (target.mode === "tasker") {
+    const tasker = await getTaskerById(target.taskerId);
+    return tasker ? { mode: "tasker", role: "tasker", target: tasker } : null;
+  }
+
+  const reviewer = await getReviewerById(target.reviewerId);
+  return reviewer ? { mode: "reviewer", role: "reviewer", target: reviewer } : null;
 }
 
 export async function setOwnAdminGameModeCookie() {
@@ -122,7 +198,12 @@ export async function setOwnAdminGameModeCookie() {
 
 export async function setTaskerImpersonationCookie(taskerId: string) {
   const cookieStore = await cookies();
-  cookieStore.set(adminGameModeCookie, `${impersonatePrefix}${taskerId}`, cookieOptions);
+  cookieStore.set(adminGameModeCookie, `${taskerImpersonatePrefix}${taskerId}`, cookieOptions);
+}
+
+export async function setReviewerImpersonationCookie(reviewerId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(adminGameModeCookie, `${reviewerImpersonatePrefix}${reviewerId}`, cookieOptions);
 }
 
 export async function clearAdminGameModeCookie() {
@@ -212,6 +293,23 @@ export async function getTaskerById(taskerId: string): Promise<AppUserRow | null
   return (data as AppUserRow | null) ?? null;
 }
 
+export async function getReviewerById(reviewerId: string): Promise<AppUserRow | null> {
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data } = await supabase
+    .from("users")
+    .select("id, auth0_sub, email, display_name, role")
+    .eq("id", reviewerId)
+    .eq("role", "reviewer")
+    .maybeSingle();
+
+  return (data as AppUserRow | null) ?? null;
+}
+
 export async function getTaskerOptionsForAdmin(): Promise<TaskerOption[]> {
   const supabase = await createSupabaseServerClient();
 
@@ -226,6 +324,22 @@ export async function getTaskerOptionsForAdmin(): Promise<TaskerOption[]> {
     .order("display_name", { ascending: true });
 
   return ((data ?? []) as TaskerOption[]).filter((tasker) => !tasker.auth0_sub.startsWith("admin-game|"));
+}
+
+export async function getReviewerOptionsForAdmin(): Promise<TaskerOption[]> {
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data } = await supabase
+    .from("users")
+    .select("id, auth0_sub, display_name, email")
+    .eq("role", "reviewer")
+    .order("display_name", { ascending: true });
+
+  return (data ?? []) as TaskerOption[];
 }
 
 function getShadowDisplayName(admin: AppUserRow) {
@@ -262,9 +376,14 @@ export function parseAdminGameModeCookieValue(value: string | undefined): AdminG
     return { mode: "own" };
   }
 
-  if (value.startsWith(impersonatePrefix)) {
-    const taskerId = value.slice(impersonatePrefix.length);
-    return taskerId ? { mode: "impersonation", taskerId } : null;
+  if (value.startsWith(taskerImpersonatePrefix)) {
+    const taskerId = value.slice(taskerImpersonatePrefix.length);
+    return taskerId ? { mode: "tasker", taskerId } : null;
+  }
+
+  if (value.startsWith(reviewerImpersonatePrefix)) {
+    const reviewerId = value.slice(reviewerImpersonatePrefix.length);
+    return reviewerId ? { mode: "reviewer", reviewerId } : null;
   }
 
   return null;

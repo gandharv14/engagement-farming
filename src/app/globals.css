@@ -55,84 +55,84 @@
 }
 
 :root {
-  --background: #212529;
-  --foreground: #f8f9fa;
-  --card: #343a40e0;
-  --card-foreground: #f8f9fa;
-  --popover: #212529;
-  --popover-foreground: #f8f9fa;
-  --primary: #dee2e6;
-  --primary-foreground: #212529;
-  --secondary: #343a40;
-  --secondary-foreground: #f8f9fa;
-  --muted: #343a40;
-  --muted-foreground: #adb5bd;
-  --accent: #495057;
-  --accent-foreground: #f8f9fa;
-  --destructive: #6c757d;
-  --border: #dee2e652;
-  --input: #343a40b8;
-  --ring: #ced4da;
-  --chart-1: #f8f9fa;
-  --chart-2: #dee2e6;
-  --chart-3: #adb5bd;
+  --background: #f8f9fa;
+  --foreground: #212529;
+  --card: #e9eceff2;
+  --card-foreground: #212529;
+  --popover: #f8f9fa;
+  --popover-foreground: #212529;
+  --primary: #212529;
+  --primary-foreground: #f8f9fa;
+  --secondary: #dee2e6;
+  --secondary-foreground: #212529;
+  --muted: #e9ecef;
+  --muted-foreground: #343a40;
+  --accent: #ced4da;
+  --accent-foreground: #212529;
+  --destructive: #495057;
+  --border: #adb5bd80;
+  --input: #dee2e6cc;
+  --ring: #495057;
+  --chart-1: #212529;
+  --chart-2: #343a40;
+  --chart-3: #495057;
   --chart-4: #6c757d;
-  --chart-5: #495057;
-  --arena-cyan: #dee2e6;
-  --arena-blue: #adb5bd;
-  --arena-purple: #f8f9fa;
-  --arena-pink: #ced4da;
-  --arena-gold: #e9ecef;
-  --arena-panel: #343a40c7;
+  --chart-5: #adb5bd;
+  --arena-cyan: #212529;
+  --arena-blue: #343a40;
+  --arena-purple: #495057;
+  --arena-pink: #6c757d;
+  --arena-gold: #343a40;
+  --arena-panel: #f8f9faf2;
   --radius: 0.8rem;
-  --sidebar: #212529e6;
-  --sidebar-foreground: #f8f9fa;
-  --sidebar-primary: #dee2e6;
-  --sidebar-primary-foreground: #212529;
-  --sidebar-accent: #343a40;
-  --sidebar-accent-foreground: #f8f9fa;
-  --sidebar-border: #dee2e652;
-  --sidebar-ring: #ced4da;
+  --sidebar: #e9eceff2;
+  --sidebar-foreground: #212529;
+  --sidebar-primary: #212529;
+  --sidebar-primary-foreground: #f8f9fa;
+  --sidebar-accent: #dee2e6;
+  --sidebar-accent-foreground: #212529;
+  --sidebar-border: #adb5bd80;
+  --sidebar-ring: #495057;
 }
 
 .dark {
-  --background: #212529;
-  --foreground: #f8f9fa;
-  --card: #343a40e0;
-  --card-foreground: #f8f9fa;
-  --popover: #212529;
-  --popover-foreground: #f8f9fa;
-  --primary: #dee2e6;
-  --primary-foreground: #212529;
-  --secondary: #343a40;
-  --secondary-foreground: #f8f9fa;
-  --muted: #343a40;
-  --muted-foreground: #adb5bd;
-  --accent: #495057;
-  --accent-foreground: #f8f9fa;
-  --destructive: #6c757d;
-  --border: #dee2e652;
-  --input: #343a40b8;
-  --ring: #ced4da;
-  --chart-1: #f8f9fa;
-  --chart-2: #dee2e6;
-  --chart-3: #adb5bd;
+  --background: #f8f9fa;
+  --foreground: #212529;
+  --card: #e9eceff2;
+  --card-foreground: #212529;
+  --popover: #f8f9fa;
+  --popover-foreground: #212529;
+  --primary: #212529;
+  --primary-foreground: #f8f9fa;
+  --secondary: #dee2e6;
+  --secondary-foreground: #212529;
+  --muted: #e9ecef;
+  --muted-foreground: #343a40;
+  --accent: #ced4da;
+  --accent-foreground: #212529;
+  --destructive: #495057;
+  --border: #adb5bd80;
+  --input: #dee2e6cc;
+  --ring: #495057;
+  --chart-1: #212529;
+  --chart-2: #343a40;
+  --chart-3: #495057;
   --chart-4: #6c757d;
-  --chart-5: #495057;
-  --arena-cyan: #dee2e6;
-  --arena-blue: #adb5bd;
-  --arena-purple: #f8f9fa;
-  --arena-pink: #ced4da;
-  --arena-gold: #e9ecef;
-  --arena-panel: #343a40c7;
-  --sidebar: #212529e6;
-  --sidebar-foreground: #f8f9fa;
-  --sidebar-primary: #dee2e6;
-  --sidebar-primary-foreground: #212529;
-  --sidebar-accent: #343a40;
-  --sidebar-accent-foreground: #f8f9fa;
-  --sidebar-border: #dee2e652;
-  --sidebar-ring: #ced4da;
+  --chart-5: #adb5bd;
+  --arena-cyan: #212529;
+  --arena-blue: #343a40;
+  --arena-purple: #495057;
+  --arena-pink: #6c757d;
+  --arena-gold: #343a40;
+  --arena-panel: #f8f9faf2;
+  --sidebar: #e9eceff2;
+  --sidebar-foreground: #212529;
+  --sidebar-primary: #212529;
+  --sidebar-primary-foreground: #f8f9fa;
+  --sidebar-accent: #dee2e6;
+  --sidebar-accent-foreground: #212529;
+  --sidebar-border: #adb5bd80;
+  --sidebar-ring: #495057;
 }
 
 @layer base {
@@ -153,23 +153,23 @@
 @layer utilities {
   .arena-bg {
     background-image:
-      radial-gradient(circle at top left, color-mix(in srgb, var(--arena-cyan) 18%, transparent), transparent 30rem),
-      radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--arena-gold) 14%, transparent), transparent 28rem),
-      linear-gradient(color-mix(in srgb, var(--arena-cyan) 7%, transparent) 1px, transparent 1px),
-      linear-gradient(90deg, color-mix(in srgb, var(--arena-cyan) 7%, transparent) 1px, transparent 1px),
-      linear-gradient(135deg, #212529, #343a40 46%, #212529);
+      radial-gradient(circle at top left, color-mix(in srgb, var(--arena-cyan) 8%, transparent), transparent 30rem),
+      radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--arena-gold) 7%, transparent), transparent 28rem),
+      linear-gradient(color-mix(in srgb, var(--arena-cyan) 6%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--arena-cyan) 6%, transparent) 1px, transparent 1px),
+      linear-gradient(135deg, #f8f9fa, #e9ecef 52%, #dee2e6);
     background-size: auto, auto, 44px 44px, 44px 44px, auto;
   }
 
   .arena-panel {
     border: 1px solid color-mix(in srgb, var(--arena-cyan) 24%, transparent);
     background:
-      linear-gradient(135deg, #343a40db, #212529d1),
+      linear-gradient(135deg, #f8f9faf7, #e9eceff0),
       var(--arena-panel);
     box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--arena-gold) 8%, transparent) inset,
-      0 22px 80px #21252973,
-      0 0 36px color-mix(in srgb, var(--arena-cyan) 8%, transparent);
+      0 0 0 1px color-mix(in srgb, var(--arena-gold) 6%, transparent) inset,
+      0 18px 54px #adb5bd52,
+      0 0 30px color-mix(in srgb, var(--arena-cyan) 5%, transparent);
   }
 
   .arena-glow {
