@@ -124,38 +124,57 @@ export default async function AdminConfigPage({ searchParams }: { searchParams?:
             ) : null}
 
             <form action={updateSprintConfig} className="grid gap-6">
-            <div className="grid gap-4 rounded-2xl border border-arena-gold/25 bg-arena-gold/10 p-4">
-              <div>
-                <p className="font-mono text-xs uppercase tracking-[0.22em] text-arena-gold">Fixed Game Rules</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  One tasker can submit at most {MAX_PROBLEMS_PER_TASKER_PER_DAY} problems per day. Each problem is{" "}
-                  {TOKENS_PER_PROBLEM.toLocaleString()} tokens.
+              <div className="grid gap-4 rounded-2xl border border-arena-gold/25 bg-arena-gold/10 p-4">
+                <div>
+                  <p className="font-mono text-xs uppercase tracking-[0.22em] text-arena-gold">Fixed Game Rules</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    One tasker can submit at most {MAX_PROBLEMS_PER_TASKER_PER_DAY} problems per day. Each problem is{" "}
+                    {TOKENS_PER_PROBLEM.toLocaleString()} tokens.
+                  </p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
+                    <p className="text-xs text-muted-foreground">Real taskers</p>
+                    <p className="font-mono text-2xl text-arena-cyan">{realTaskerCount.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
+                    <p className="text-xs text-muted-foreground">Max per tasker this sprint</p>
+                    <p className="font-mono text-2xl text-arena-cyan">{maxProblemsPerTasker.toLocaleString()} problems</p>
+                    <p className="text-xs text-muted-foreground">{perTaskerTokens.toLocaleString()} tokens</p>
+                  </div>
+                  <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
+                    <p className="text-xs text-muted-foreground">Roster capacity</p>
+                    <p className="font-mono text-2xl text-arena-cyan">{collectiveCapacity.toLocaleString()} problems</p>
+                  </div>
+                  <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
+                    <p className="text-xs text-muted-foreground">Taskers needed now</p>
+                    <p className="font-mono text-2xl text-arena-cyan">{requiredGoalTaskers.toLocaleString()} goal</p>
+                    <p className="text-xs text-muted-foreground">{requiredStretchTaskers.toLocaleString()} for stretch</p>
+                  </div>
+                </div>
+                <div className="grid gap-2 rounded-xl border border-arena-gold/20 bg-background/60 p-3 text-xs text-muted-foreground">
+                  <p className="font-mono uppercase tracking-[0.18em] text-arena-gold">Formulas</p>
+                  <p>
+                    Max per tasker = sprint days x daily cap = {currentDurationDays.toLocaleString()} x{" "}
+                    {MAX_PROBLEMS_PER_TASKER_PER_DAY.toLocaleString()} = {maxProblemsPerTasker.toLocaleString()} problems.
+                  </p>
+                  <p>
+                    Per-tasker tokens = max per tasker x tokens per problem = {maxProblemsPerTasker.toLocaleString()} x{" "}
+                    {TOKENS_PER_PROBLEM.toLocaleString()} = {perTaskerTokens.toLocaleString()} tokens.
+                  </p>
+                  <p>
+                    Roster capacity = real taskers x max per tasker = {realTaskerCount.toLocaleString()} x{" "}
+                    {maxProblemsPerTasker.toLocaleString()} = {collectiveCapacity.toLocaleString()} problems.
+                  </p>
+                  <p>
+                    Taskers needed = ceiling(target rows / max per tasker): goal {requiredGoalTaskers.toLocaleString()}, stretch{" "}
+                    {requiredStretchTaskers.toLocaleString()}.
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Impossible targets are saved with warnings so admins can stage draft rules, recruit more taskers, or adjust the sprint later.
                 </p>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
-                  <p className="text-xs text-muted-foreground">Real taskers</p>
-                  <p className="font-mono text-2xl text-arena-cyan">{realTaskerCount.toLocaleString()}</p>
-                </div>
-                <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
-                  <p className="text-xs text-muted-foreground">Max per tasker this sprint</p>
-                  <p className="font-mono text-2xl text-arena-cyan">{maxProblemsPerTasker.toLocaleString()} problems</p>
-                  <p className="text-xs text-muted-foreground">{perTaskerTokens.toLocaleString()} tokens</p>
-                </div>
-                <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
-                  <p className="text-xs text-muted-foreground">Roster capacity</p>
-                  <p className="font-mono text-2xl text-arena-cyan">{collectiveCapacity.toLocaleString()} problems</p>
-                </div>
-                <div className="rounded-xl border border-arena-cyan/20 bg-background/60 p-3">
-                  <p className="text-xs text-muted-foreground">Taskers needed now</p>
-                  <p className="font-mono text-2xl text-arena-cyan">{requiredGoalTaskers.toLocaleString()} goal</p>
-                  <p className="text-xs text-muted-foreground">{requiredStretchTaskers.toLocaleString()} for stretch</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Impossible targets are saved with warnings so admins can stage draft rules, recruit more taskers, or adjust the sprint later.
-              </p>
-            </div>
 
             <div className="grid gap-4 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4">
               <div className="grid gap-2">
@@ -216,6 +235,19 @@ export default async function AdminConfigPage({ searchParams }: { searchParams?:
                   />
                 </div>
               </div>
+              <div className="grid gap-2 rounded-xl border border-arena-purple/20 bg-background/60 p-3 text-xs text-muted-foreground">
+                <p className="font-mono uppercase tracking-[0.18em] text-arena-purple">Warning formulas</p>
+                <p>
+                  Capacity warning when target rows &gt; roster capacity. Current roster capacity is{" "}
+                  {collectiveCapacity.toLocaleString()} problems.
+                </p>
+                <p>
+                  Goal uses {collectiveGoalRows.toLocaleString()} &gt; {collectiveCapacity.toLocaleString()}; stretch uses{" "}
+                  {collectiveStretchRows.toLocaleString()} &gt; {collectiveCapacity.toLocaleString()}.
+                </p>
+                <p>Roster warning when real taskers &lt; 1. Current real taskers: {realTaskerCount.toLocaleString()}.</p>
+                <p>Stretch below goal is a save error, not a warning: stretch must be greater than or equal to goal.</p>
+              </div>
             </div>
 
             <div className="grid gap-4 rounded-2xl border border-arena-gold/25 bg-arena-gold/10 p-4">
@@ -272,6 +304,12 @@ export default async function AdminConfigPage({ searchParams }: { searchParams?:
                     required
                   />
                 </div>
+              </div>
+              <div className="grid gap-2 rounded-xl border border-arena-gold/20 bg-background/60 p-3 text-xs text-muted-foreground">
+                <p className="font-mono uppercase tracking-[0.18em] text-arena-gold">Warning formulas</p>
+                <p>Reachability warning when tier threshold &gt; max per tasker ({maxProblemsPerTasker.toLocaleString()} rows).</p>
+                <p>Ordering warning when any tier threshold is less than or equal to the previous tier threshold.</p>
+                <p>Duplicate tier thresholds are a save error because each milestone threshold must be unique.</p>
               </div>
             </div>
 
