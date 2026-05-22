@@ -25,7 +25,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
 AUTH0_SECRET=
-AUTH0_BASE_URL=http://localhost:3000
+APP_BASE_URL=http://localhost:3000
+AUTH0_BASE_URL=
 AUTH0_CLIENT_SECRET=
 AUTH0_AUDIENCE=
 AUTH0_CONNECTION=
@@ -35,6 +36,7 @@ APP_ADMIN_EMAILS=
 ```
 
 The app uses Auth0 routes mounted at `/api/auth/login`, `/api/auth/logout`, `/api/auth/callback`, and `/api/auth/me`.
+Use `APP_BASE_URL` for a fixed local or production origin. `AUTH0_BASE_URL` is still accepted for older env files, but the deployed Vercel app should not use a localhost value.
 
 ## Supabase Migrations
 

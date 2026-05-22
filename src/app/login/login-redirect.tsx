@@ -1,26 +1,26 @@
 "use client";
 
-import { useEffect } from "react";
+import { LogIn } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-export function LoginRedirect() {
-  useEffect(() => {
-    const embedded = window.self !== window.top;
+const loginHref = "/api/auth/login?returnTo=%2F";
 
-    if (!embedded) {
-      window.location.replace("/api/auth/login");
-    }
-  }, []);
+export function LoginRedirect() {
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  function markRedirecting() {
+    setIsRedirecting(true);
+  }
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Redirecting to Labelbox SSO. If this app is embedded in another page, continue in the top-level window.
-      </p>
+      <p className="text-sm text-muted-foreground">Continue to Labelbox SSO to access Sprint Arcade.</p>
       <Button asChild>
-        <a href="/api/auth/login" target="_top">
-          Continue with Labelbox SSO
+        <a href={loginHref} onClick={markRedirecting} target="_top">
+          <LogIn className="mr-2 h-4 w-4" />
+          {isRedirecting ? "Opening Labelbox SSO..." : "Continue with Labelbox SSO"}
         </a>
       </Button>
     </div>

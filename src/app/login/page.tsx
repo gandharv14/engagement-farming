@@ -1,11 +1,21 @@
-import { Flame } from "lucide-react";
+import { AlertCircle, Flame } from "lucide-react";
 
 import { LoginRedirect } from "@/app/login/login-redirect";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{
+    error?: string | string[];
+  }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const error = (await searchParams).error;
+  const hasSsoError = Array.isArray(error) ? error.includes("sso") : error === "sso";
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
       <Card className="max-w-md">
@@ -16,7 +26,14 @@ export default function LoginPage() {
           <CardTitle>Sign in to Sprint Arcade</CardTitle>
           <CardDescription>Use your Labelbox SSO account through Auth0.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {hasSsoError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>SSO could not complete</AlertTitle>
+              <AlertDescription>Try again, or check that the Auth0 callback URL matches this deployment.</AlertDescription>
+            </Alert>
+          ) : null}
           <LoginRedirect />
         </CardContent>
       </Card>
