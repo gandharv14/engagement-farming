@@ -112,7 +112,7 @@ test.describe("admin game mode", () => {
     await page.getByRole("option", { name: "Debugging" }).click();
     await page.getByLabel("Token count").fill("9876");
     await page.getByLabel("Taiga problem link").fill(`https://taiga.example.com/project/live-compare/us/${prefix}`);
-    await page.getByRole("button", { name: "Record submitted row" }).click();
+    await page.getByRole("button", { name: "Submit Sprint Entry" }).click();
 
     await expect.poll(async () => (await getRowsByPrefix(prefix)).map((row) => row.tasker_id)).toEqual([tasker.id]);
 

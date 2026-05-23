@@ -54,7 +54,7 @@ test.describe("tasker surfaces", () => {
       await page.getByRole("option", { name: "Debugging" }).click();
       await page.getByLabel("Token count").fill("3210");
       await page.getByLabel("Taiga problem link").fill(`https://taiga.example.com/project/live-compare/us/${prefix}`);
-      await page.getByRole("button", { name: "Record submitted row" }).click();
+      await page.getByRole("button", { name: "Submit Sprint Entry" }).click();
       await expect(page.getByText(/submissions logged today\./)).toBeVisible();
       await expect(page.getByText(/Potential streak if pending rows pass:/)).toBeVisible();
       await expect(page.getByRole("heading", { name: "Submitted Rows" })).toBeVisible();
