@@ -26,6 +26,16 @@ test.describe("admin ops surfaces", () => {
       await expect(page.getByRole("heading", { name: adminPage.heading })).toBeVisible();
     }
   });
+
+  test("shows the reviewers page link on initial admin load", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/admin");
+    await dismissRulesModal(page);
+
+    const reviewersLink = page.getByRole("link", { name: "Reviewers" });
+    await expect(reviewersLink).toBeVisible();
+    await expect(reviewersLink).toBeInViewport();
+  });
 });
 
 test.describe("admin payout export", () => {

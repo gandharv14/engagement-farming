@@ -92,7 +92,7 @@ export function AppShell({
       ) : null}
       <div className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[220px_1fr]">
         <aside className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
-          <nav className="arena-panel flex gap-2 overflow-x-auto rounded-2xl p-2 pb-2 lg:flex-col lg:overflow-visible">
+          <nav className="arena-panel flex flex-wrap gap-2 overflow-visible rounded-2xl p-2 lg:flex-col">
             {getNavigationLinksForRole(activeNavigationRole).map((link) => {
               const Icon = navigationIcons[link.icon];
 
