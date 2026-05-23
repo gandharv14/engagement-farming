@@ -49,6 +49,22 @@ describe("navigation coverage", () => {
 });
 
 describe("shell navigation", () => {
+  it("shows the reviewers tab in the primary admin navigation", () => {
+    const links = getShellNavigationLinks("admin");
+
+    expect(links.map((link) => link.href)).toEqual([
+      "/admin",
+      "/admin/game-mode",
+      "/admin/reviewers",
+      "/admin/taskers",
+      "/admin/config",
+      "/admin/economics",
+      "/admin/goodies",
+      "/admin/guilds",
+      "/admin/payouts",
+    ]);
+  });
+
   it("keeps admin navigation available while an admin is in reviewer mode", () => {
     const links = getShellNavigationLinks("admin", "reviewer");
 

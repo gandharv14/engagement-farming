@@ -21,8 +21,8 @@ export const sidebarNavigationLinksByRole = {
   admin: [
     { href: "/admin", label: "Operations", icon: "dashboard" },
     { href: "/admin/game-mode", label: "Admin Mode", icon: "gamepad" },
-    { href: "/admin/taskers", label: "Taskers", icon: "users" },
     { href: "/admin/reviewers", label: "Reviewers", icon: "shield" },
+    { href: "/admin/taskers", label: "Taskers", icon: "users" },
     { href: "/admin/config", label: "Config", icon: "flame" },
     { href: "/admin/economics", label: "Economics", icon: "medal" },
     { href: "/admin/goodies", label: "Goodies", icon: "gift" },
