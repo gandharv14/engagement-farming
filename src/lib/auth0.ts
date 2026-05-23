@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
 
 import { ensureAppUser } from "@/lib/app-user";
+import { getSafeLoginReturnTo } from "@/lib/return-to";
 import type { AppRole } from "@/lib/roles";
 
 const labelboxAuth0Domain = "labelbox.auth0.com";
@@ -92,21 +93,13 @@ function getOptionalEnv(name: string) {
 }
 
 function getPostLoginPath(returnTo: string | undefined, role: AppRole | undefined) {
-  const safeReturnTo = getSafeRelativePath(returnTo);
+  const safeReturnTo = getSafeLoginReturnTo(returnTo);
 
-  if (safeReturnTo && safeReturnTo !== "/" && !safeReturnTo.startsWith("/login")) {
+  if (safeReturnTo !== "/") {
     return safeReturnTo;
   }
 
   return getHomePathForRole(role);
-}
-
-function getSafeRelativePath(path: string | undefined) {
-  if (!path || !path.startsWith("/") || path.startsWith("//")) {
-    return null;
-  }
-
-  return path;
 }
 
 function getHomePathForRole(role: AppRole | undefined) {

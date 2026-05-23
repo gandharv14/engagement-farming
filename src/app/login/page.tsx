@@ -6,23 +6,27 @@ import { GameRulesDialog } from "@/components/app/game-rules-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser, getHomePathForRole } from "@/lib/auth";
+import { getSafeLoginReturnTo } from "@/lib/return-to";
 
 export const dynamic = "force-dynamic";
 
 type LoginPageProps = {
   searchParams: Promise<{
     error?: string | string[];
+    returnTo?: string | string[];
   }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  const returnTo = getSafeLoginReturnTo(params.returnTo);
   const user = await getCurrentUser();
 
   if (user) {
-    redirect(getHomePathForRole(user.role));
+    redirect(returnTo === "/" ? getHomePathForRole(user.role) : returnTo);
   }
 
-  const error = (await searchParams).error;
+  const error = params.error;
   const hasSsoError = Array.isArray(error) ? error.includes("sso") : error === "sso";
 
   return (
@@ -49,7 +53,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </AlertDescription>
             </Alert>
           ) : null}
-          <LoginRedirect />
+          <LoginRedirect returnTo={returnTo} />
         </CardContent>
       </Card>
     </main>

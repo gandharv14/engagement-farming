@@ -6,10 +6,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
-const loginHref = "/api/auth/login?returnTo=%2F";
+function getLoginHref(returnTo: string) {
+  return `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+}
 
-export function LoginRedirect() {
+export function LoginRedirect({ returnTo = "/" }: { returnTo?: string }) {
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const loginHref = getLoginHref(returnTo);
 
   function markRedirecting() {
     setIsRedirecting(true);

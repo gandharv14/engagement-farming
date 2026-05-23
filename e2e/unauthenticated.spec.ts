@@ -10,6 +10,16 @@ for (const route of protectedRoutes) {
   });
 }
 
+test("preserves a protected destination through the SSO login link", async ({ page }) => {
+  await page.goto("/admin/reviewers");
+
+  await expect(page).toHaveURL(/\/login\?returnTo=%2Fadmin%2Freviewers/);
+  await expect(page.getByRole("link", { name: "Continue with Labelbox SSO" })).toHaveAttribute(
+    "href",
+    "/api/auth/login?returnTo=%2Fadmin%2Freviewers",
+  );
+});
+
 test("shows the SSO error state on the login page", async ({ page }) => {
   await page.goto("/login?error=sso");
 
