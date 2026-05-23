@@ -1,10 +1,8 @@
-import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { assignGuildMember, createGuild, deleteGuild, removeGuildMember, renameGuild } from "./actions";
 
@@ -36,7 +34,6 @@ function displayName(user?: Pick<TaskerRow, "display_name" | "email"> | null) {
 }
 
 export default async function AdminGuildsPage() {
-  const user = await requireRole("admin");
   const supabase = await createSupabaseServerClient();
   const [{ data: guilds }, { data: memberships }, { data: taskers }] = supabase
     ? await Promise.all([
@@ -51,8 +48,7 @@ export default async function AdminGuildsPage() {
   const assignedTaskerIds = new Set(membershipRows.map((membership) => membership.user_id));
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="arena-panel rounded-3xl p-5">
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-purple">Team Builder</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Guilds</h1>
@@ -204,6 +200,5 @@ export default async function AdminGuildsPage() {
           </CardContent>
         </Card>
       </div>
-    </AppShell>
   );
 }

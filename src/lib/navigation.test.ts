@@ -42,7 +42,7 @@ describe("navigation coverage", () => {
     const pageRoutes = collectPageFiles(appDir).map(pageFileToRoutePattern).sort();
     const sidebarRoutes = Object.values(sidebarNavigationLinksByRole).flatMap((links) => links.map((link) => link.href));
     const documentedRoutes = intentionalNonSidebarRoutes.map((route) => route.route);
-    const coveredRoutes = new Set([...sidebarRoutes, ...documentedRoutes]);
+    const coveredRoutes = new Set<string>([...sidebarRoutes, ...documentedRoutes]);
 
     expect(pageRoutes.filter((route) => !coveredRoutes.has(route))).toEqual([]);
   });

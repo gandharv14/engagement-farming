@@ -53,7 +53,7 @@ export function AppShell({
             </div>
           </Link>
           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-            <GameRulesDialog />
+            <GameRulesDialog autoOpen={activeNavigationRole !== "admin"} />
             <Badge variant="secondary" className="border-arena-purple/40 bg-arena-purple/15 text-arena-cyan capitalize">
               {role}
             </Badge>

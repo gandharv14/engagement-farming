@@ -1,11 +1,9 @@
 import { updateSprintConfig } from "@/app/actions";
-import { AppShell } from "@/components/app/app-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldHelpLabel } from "@/components/ui/field-help-label";
 import { Input } from "@/components/ui/input";
-import { requireRole } from "@/lib/auth";
 import {
   MAX_PROBLEMS_PER_TASKER_PER_DAY,
   TOKENS_PER_PROBLEM,
@@ -45,7 +43,6 @@ function sprintDurationDays(startDate: string, endDate: string) {
 }
 
 export default async function AdminConfigPage({ searchParams }: { searchParams?: Promise<AdminConfigSearchParams> }) {
-  const user = await requireRole("admin");
   const resolvedSearchParams = (await searchParams) ?? {};
   const supabase = await createSupabaseServerClient();
   const { data: config } = supabase
@@ -87,8 +84,7 @@ export default async function AdminConfigPage({ searchParams }: { searchParams?:
       : [];
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
-      <Card>
+    <Card>
         <CardHeader>
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-pink">Sprint Tuning</p>
           <CardTitle>Sprint Config</CardTitle>
@@ -373,6 +369,5 @@ export default async function AdminConfigPage({ searchParams }: { searchParams?:
           </div>
         </CardContent>
       </Card>
-    </AppShell>
   );
 }

@@ -17,8 +17,8 @@ const rules = [
 
 let hasShownRulesThisAppOpen = false;
 
-export function GameRulesDialog() {
-  const [open, setOpen] = React.useState(() => !hasShownRulesThisAppOpen);
+export function GameRulesDialog({ autoOpen = true }: { autoOpen?: boolean }) {
+  const [open, setOpen] = React.useState(() => autoOpen && !hasShownRulesThisAppOpen);
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);

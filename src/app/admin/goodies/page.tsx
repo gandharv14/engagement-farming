@@ -1,6 +1,5 @@
 import { Gift, PackageCheck } from "lucide-react";
 
-import { AppShell } from "@/components/app/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { requireRole } from "@/lib/auth";
 import { formatCurrency } from "@/lib/data";
 import { createSupabaseServerClient } from "@/lib/supabase";
 import {
@@ -74,7 +72,6 @@ function TierSelect({ defaultValue, id }: { defaultValue?: string; id: string })
 }
 
 export default async function AdminGoodiesPage() {
-  const user = await requireRole("admin");
   const supabase = await createSupabaseServerClient();
   const [{ data: goodies }, { data: internalGoodies }, { data: fulfillments }] = supabase
     ? await Promise.all([
@@ -93,8 +90,7 @@ export default async function AdminGoodiesPage() {
   const internalByGoodieId = new Map(internalRows.map((item) => [item.goodie_id, item]));
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="arena-panel rounded-3xl p-5">
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-gold">Loot Ops</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Goodies</h1>
@@ -283,6 +279,5 @@ export default async function AdminGoodiesPage() {
           </CardContent>
         </Card>
       </div>
-    </AppShell>
   );
 }

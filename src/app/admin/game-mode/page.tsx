@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Gamepad2, UserRoundSearch } from "lucide-react";
 
-import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -36,8 +35,7 @@ export default async function AdminGameModePage() {
     : [null, [], []];
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="arena-panel rounded-3xl p-5">
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-purple">Simulator</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Admin Mode</h1>
@@ -174,6 +172,5 @@ export default async function AdminGameModePage() {
           </Card>
         </section>
       </div>
-    </AppShell>
   );
 }
