@@ -19,7 +19,7 @@ export default async function ReviewQueuePage() {
 
   return (
     <AppShell {...getReviewerShellProps(context)}>
-      <RealtimeRefresh subscriptions={[{ table: "rows", filter: "status=eq.pending_review" }, { table: "streaks" }]} />
+      <RealtimeRefresh subscriptions={[{ table: "rows" }, { table: "streaks" }]} pollIntervalMs={10_000} />
       <div className="space-y-6">
         <div className="arena-panel rounded-3xl p-5">
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Moderator Console</p>

@@ -9,15 +9,30 @@ type Subscription = {
   filter?: string;
 };
 
-export function RealtimeRefresh({ subscriptions }: { subscriptions: Subscription[] }) {
+export function RealtimeRefresh({
+  subscriptions,
+  pollIntervalMs,
+}: {
+  subscriptions: Subscription[];
+  pollIntervalMs?: number;
+}) {
   const router = useRouter();
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
+
+    if (pollIntervalMs && pollIntervalMs > 0) {
+      pollTimer = setInterval(() => router.refresh(), pollIntervalMs);
+    }
 
     if (!url || !anonKey || subscriptions.length === 0) {
-      return;
+      return () => {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+        }
+      };
     }
 
     const supabaseUrl = url;
@@ -90,8 +105,11 @@ export function RealtimeRefresh({ subscriptions }: { subscriptions: Subscription
     return () => {
       cancelled = true;
       cleanup?.();
+      if (pollTimer) {
+        clearInterval(pollTimer);
+      }
     };
-  }, [router, subscriptions]);
+  }, [pollIntervalMs, router, subscriptions]);
 
   return null;
 }

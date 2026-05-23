@@ -146,6 +146,7 @@ export async function submitRow(formData: FormData) {
   }
 
   revalidatePath("/");
+  revalidatePath("/review/queue");
 }
 
 export async function reviewRow(rowId: string, formData: FormData) {

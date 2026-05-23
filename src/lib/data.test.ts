@@ -418,6 +418,23 @@ describe("data helpers", () => {
     expect(queue.map((row) => row.id)).toEqual(["available", "owned", "expired"]);
   });
 
+  it("surfaces review queue query errors instead of rendering an empty queue", async () => {
+    const supabase = createSupabaseMock({
+      tables: {
+        rows: ({ operations }) => {
+          if (operations.some((operation) => operation.name === "update")) {
+            return { data: null, error: null };
+          }
+
+          return { data: null, error: { message: "queue query failed" } };
+        },
+      },
+    });
+    mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+    await expect(getReviewQueue("reviewer-one")).rejects.toThrow("queue query failed");
+  });
+
   it("only returns review details for an active reservation owned by the reviewer", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-22T16:00:00.000Z"));

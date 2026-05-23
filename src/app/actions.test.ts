@@ -219,6 +219,7 @@ describe("server actions", () => {
         },
       });
       expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/review/queue");
     });
 
     it("rejects invalid task types before counting or inserting rows", async () => {

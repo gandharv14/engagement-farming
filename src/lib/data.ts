@@ -564,12 +564,16 @@ export async function getEarnings(auth0Sub: string) {
 }
 
 async function releaseExpiredReservations(supabase: SupabaseServerClient, now = new Date()) {
-  await supabase
+  const { error } = await supabase
     .from("rows")
     .update({ reserved_by: null, reserved_until: null })
     .eq("status", "pending_review")
     .lte("reserved_until", now.toISOString())
     .not("reserved_by", "is", null);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 type RawReviewQueueRow = {
@@ -591,11 +595,15 @@ export async function getReviewQueue(reviewerId?: string): Promise<ReviewQueueRo
   const now = new Date();
   await releaseExpiredReservations(supabase, now);
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("rows")
     .select("id, tasker_id, submitted_at, reserved_by, reserved_until, metadata")
     .eq("status", "pending_review")
     .order("submitted_at", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
 
   const rows = ((data ?? []) as RawReviewQueueRow[]).filter(
     (row) => !isReviewReservationActive(row.reserved_until, now) || row.reserved_by === reviewerId,
@@ -627,11 +635,15 @@ export async function getReviewDetail(rowId: string, reviewerId: string): Promis
   const now = new Date();
   await releaseExpiredReservations(supabase, now);
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("rows")
     .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, metadata")
     .eq("id", rowId)
     .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
 
   const row = data as (RawReviewQueueRow & { status: string }) | null;
 
