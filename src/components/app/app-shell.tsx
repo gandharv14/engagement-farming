@@ -6,44 +6,18 @@ import { GameRulesDialog } from "@/components/app/game-rules-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { getNavigationHomeHref, getNavigationLinksForRole, type NavigationIconName } from "@/lib/navigation";
 import type { AppRole } from "@/lib/roles";
 
-const taskerLinks = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/leaderboards", label: "Leaderboards", icon: Medal },
-  { href: "/guild", label: "Guild", icon: Users },
-  { href: "/goodies", label: "Goodies", icon: Gift },
-  { href: "/earnings", label: "Earnings", icon: Flame },
-  { href: "/profile", label: "Profile", icon: ShieldCheck },
-];
-
-const reviewerLinks = [
-  { href: "/review/queue", label: "Reviewer Dashboard", icon: ShieldCheck },
-];
-
-const adminLinks = [
-  { href: "/admin", label: "Operations", icon: LayoutDashboard },
-  { href: "/admin/game-mode", label: "Admin Mode", icon: Gamepad2 },
-  { href: "/admin/taskers", label: "Taskers", icon: Users },
-  { href: "/admin/reviewers", label: "Reviewers", icon: ShieldCheck },
-  { href: "/admin/config", label: "Config", icon: Flame },
-  { href: "/admin/economics", label: "Economics", icon: Medal },
-  { href: "/admin/goodies", label: "Goodies", icon: Gift },
-  { href: "/admin/guilds", label: "Guilds", icon: Users },
-  { href: "/admin/payouts", label: "Payouts", icon: Gift },
-];
-
-function linksForRole(role: AppRole) {
-  if (role === "admin") {
-    return adminLinks;
-  }
-
-  if (role === "reviewer") {
-    return reviewerLinks;
-  }
-
-  return taskerLinks;
-}
+const navigationIcons = {
+  dashboard: LayoutDashboard,
+  flame: Flame,
+  gamepad: Gamepad2,
+  gift: Gift,
+  medal: Medal,
+  shield: ShieldCheck,
+  users: Users,
+} satisfies Record<NavigationIconName, typeof LayoutDashboard>;
 
 export function AppShell({
   role,
@@ -62,7 +36,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const activeNavigationRole = navigationRole ?? role;
-  const homeHref = activeNavigationRole === "admin" ? "/admin" : activeNavigationRole === "reviewer" ? "/review/queue" : "/";
+  const homeHref = getNavigationHomeHref(activeNavigationRole);
 
   return (
     <div className="arena-bg relative min-h-screen overflow-hidden bg-background">
@@ -119,8 +93,8 @@ export function AppShell({
       <div className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[220px_1fr]">
         <aside className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
           <nav className="arena-panel flex gap-2 overflow-x-auto rounded-2xl p-2 pb-2 lg:flex-col lg:overflow-visible">
-            {linksForRole(activeNavigationRole).map((link) => {
-              const Icon = link.icon;
+            {getNavigationLinksForRole(activeNavigationRole).map((link) => {
+              const Icon = navigationIcons[link.icon];
 
               return (
                 <Button

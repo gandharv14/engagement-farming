@@ -3,11 +3,17 @@ import { AppShell } from "@/components/app/app-shell";
 import { RealtimeRefresh } from "@/components/app/realtime-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTaskerShellProps, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { getGoodies } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
+
+const roughGoodieValues: Record<string, string> = {
+  "Tier 1": "$50",
+  "Tier 2": "$100",
+  "Tier 3": "$200",
+};
 
 export default async function GoodiesPage() {
   const context = await requireTaskerGameContext();
@@ -21,7 +27,7 @@ export default async function GoodiesPage() {
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-gold">Loot Unlocks</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Goodie Catalog</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Unlock one selection per tier. Item costs stay admin-only.
+            Unlock one selection per tier. Rough values are shown here; internal costs stay admin-only.
           </p>
         </div>
 
@@ -42,18 +48,20 @@ export default async function GoodiesPage() {
                 {tierGoodies.length ? (
                   tierGoodies.map((goodie) => {
                     const selected = achievement?.goodie_id === goodie.id;
+                    const roughValue = roughGoodieValues[goodie.tier_label];
 
                     return (
-                      <Card key={goodie.id} className={!unlocked ? "opacity-60 grayscale" : undefined}>
+                      <Card key={goodie.id} className={unlocked ? "h-full" : "h-full opacity-60 grayscale"}>
                         <CardHeader>
                           <CardTitle>{goodie.name}</CardTitle>
+                          {roughValue ? <Badge variant="outline">About {roughValue} value</Badge> : null}
                           <CardDescription>{goodie.description}</CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardFooter className="mt-auto">
                           {selected ? (
                             <Badge>On the way</Badge>
                           ) : unlocked && achievement ? (
-                            <form action={selectGoodie.bind(null, achievement.id, goodie.id)}>
+                            <form action={selectGoodie.bind(null, achievement.id, goodie.id)} className="w-full">
                               <Button type="submit" className="w-full" aria-label={`Select ${goodie.name}`}>
                                 Select this goodie
                               </Button>
@@ -63,7 +71,7 @@ export default async function GoodiesPage() {
                               Locked
                             </Button>
                           )}
-                        </CardContent>
+                        </CardFooter>
                       </Card>
                     );
                   })
