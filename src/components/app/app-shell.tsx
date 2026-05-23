@@ -23,7 +23,7 @@ const reviewerLinks = [
 
 const adminLinks = [
   { href: "/admin", label: "Operations", icon: LayoutDashboard },
-  { href: "/admin/game-mode", label: "Game Mode", icon: Gamepad2 },
+  { href: "/admin/game-mode", label: "Admin Mode", icon: Gamepad2 },
   { href: "/admin/taskers", label: "Taskers", icon: Users },
   { href: "/admin/reviewers", label: "Reviewers", icon: ShieldCheck },
   { href: "/admin/config", label: "Config", icon: Flame },
@@ -98,7 +98,7 @@ export function AppShell({
         <div className="border-b border-arena-gold/25 bg-arena-gold/10">
           <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
-              <span className="font-mono text-xs font-medium uppercase tracking-[0.22em] text-arena-gold">Admin game mode:</span>{" "}
+              <span className="font-mono text-xs font-medium uppercase tracking-[0.22em] text-arena-gold">Admin mode:</span>{" "}
               <span className="text-muted-foreground">
                 {gameMode.label} as {gameMode.targetName}
               </span>

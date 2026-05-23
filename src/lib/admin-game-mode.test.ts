@@ -5,6 +5,7 @@ import {
   getShadowAuth0Sub,
   parseAdminGameModeCookieValue,
   toShadowEmail,
+  type ReviewerGameContext,
   type TaskerGameContext,
 } from "./admin-game-mode";
 
@@ -20,15 +21,19 @@ describe("admin game mode helpers", () => {
   it("parses own and tasker impersonation cookie values", () => {
     expect(parseAdminGameModeCookieValue("own")).toEqual({ mode: "own" });
     expect(parseAdminGameModeCookieValue("tasker:tasker-id")).toEqual({
-      mode: "impersonation",
+      mode: "tasker",
       taskerId: "tasker-id",
+    });
+    expect(parseAdminGameModeCookieValue("reviewer:reviewer-id")).toEqual({
+      mode: "reviewer",
+      reviewerId: "reviewer-id",
     });
   });
 
   it("rejects empty or malformed game mode cookie values", () => {
     expect(parseAdminGameModeCookieValue(undefined)).toBeNull();
     expect(parseAdminGameModeCookieValue("tasker:")).toBeNull();
-    expect(parseAdminGameModeCookieValue("reviewer:reviewer-id")).toBeNull();
+    expect(parseAdminGameModeCookieValue("reviewer:")).toBeNull();
   });
 
   it("builds stable shadow user identifiers for admin-owned game profiles", () => {
@@ -65,6 +70,32 @@ describe("admin game mode helpers", () => {
       gameMode: {
         label: "Impersonating",
         targetName: "Tara Tasker",
+      },
+    });
+  });
+
+  it("keeps reviewer shell props reviewer-facing while preserving the admin session role", async () => {
+    const { getReviewerShellProps } = await import("./admin-game-mode");
+    const context: ReviewerGameContext = {
+      sessionUser: { sub: "auth0|admin", role: "admin", email: "admin@example.com", name: "Ada Admin" },
+      reviewer: {
+        id: "reviewer-id",
+        auth0_sub: "auth0|reviewer",
+        email: "reviewer@example.com",
+        display_name: "Rina Reviewer",
+        role: "reviewer",
+      },
+      isAdminGameMode: true,
+      gameModeLabel: "Impersonating",
+    };
+
+    expect(getReviewerShellProps(context)).toEqual({
+      role: "admin",
+      name: "Ada Admin",
+      navigationRole: "reviewer",
+      gameMode: {
+        label: "Impersonating",
+        targetName: "Rina Reviewer",
       },
     });
   });

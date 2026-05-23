@@ -7,13 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { requireRole } from "@/lib/auth";
+import { getReviewerShellProps, requireReviewerGameContext } from "@/lib/admin-game-mode";
 import { getReviewDetail } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReviewDetailPage({ params }: { params: Promise<{ rowId: string }> }) {
-  const user = await requireRole("reviewer");
+  const context = await requireReviewerGameContext();
   const { rowId } = await params;
   const row = await getReviewDetail(rowId);
 
@@ -27,7 +27,7 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
   const potentialDelta = Math.max(0, row.tasker_potential_streak_days - row.tasker_current_streak_days);
 
   return (
-    <AppShell role={user.role} name={user.name ?? user.email ?? "Reviewer"}>
+    <AppShell {...getReviewerShellProps(context)}>
       <div className="space-y-6">
         <div className="arena-panel rounded-3xl p-5">
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Score Check</p>

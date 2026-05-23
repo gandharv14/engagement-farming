@@ -3,9 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireTaskerGameContext } from "@/lib/admin-game-mode";
+import { requireReviewerGameContext, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { requireRole } from "@/lib/auth";
-import { getMyUserRow } from "@/lib/data";
 import {
   MAX_PROBLEMS_PER_TASKER_PER_DAY,
   formatDateOnly,
@@ -149,9 +148,9 @@ export async function submitRow(formData: FormData) {
 }
 
 export async function reviewRow(rowId: string, formData: FormData) {
-  const user = await requireRole("reviewer");
+  const context = await requireReviewerGameContext();
   const supabase = await createSupabaseServerClient();
-  const reviewer = await getMyUserRow(user.sub);
+  const reviewer = context.reviewer;
   const status = formString(formData, "status");
   const score = Number(formString(formData, "score"));
 

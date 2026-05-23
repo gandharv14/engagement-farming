@@ -40,9 +40,9 @@ export default async function AdminGameModePage() {
       <div className="space-y-6">
         <div className="arena-panel rounded-3xl p-5">
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-purple">Simulator</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Admin Game Mode</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Admin Mode</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Enter tasker-facing gameplay while keeping your admin session and operations access.
+            Enter tasker or reviewer surfaces while keeping your admin session and operations access.
           </p>
         </div>
 
@@ -50,7 +50,7 @@ export default async function AdminGameModePage() {
           <CardHeader>
             <CardTitle>Current Target</CardTitle>
             <CardDescription>
-              Game mode changes only the tasker context used by the game surfaces and game actions.
+              Admin mode changes only the tasker or reviewer context used by role-specific surfaces and actions.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

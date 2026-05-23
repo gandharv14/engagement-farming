@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     throw new Error(`NEXT_REDIRECT:${path}`);
   }),
   requireRole: vi.fn(),
+  requireReviewerGameContext: vi.fn(),
   requireTaskerGameContext: vi.fn(),
   revalidatePath: vi.fn(),
 }));
@@ -20,6 +21,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/admin-game-mode", () => ({
+  requireReviewerGameContext: mocks.requireReviewerGameContext,
   requireTaskerGameContext: mocks.requireTaskerGameContext,
 }));
 
@@ -150,6 +152,18 @@ describe("server actions", () => {
       },
     });
     mocks.requireRole.mockResolvedValue({ sub: "auth0|reviewer", role: "reviewer" });
+    mocks.requireReviewerGameContext.mockResolvedValue({
+      sessionUser: { sub: "auth0|reviewer", role: "reviewer" },
+      reviewer: {
+        id: "reviewer-id",
+        auth0_sub: "auth0|reviewer",
+        email: "reviewer@example.com",
+        display_name: "Reviewer One",
+        role: "reviewer",
+      },
+      isAdminGameMode: false,
+      gameModeLabel: null,
+    });
     mocks.getMyUserRow.mockResolvedValue({
       id: "reviewer-id",
       auth0_sub: "auth0|reviewer",
@@ -236,7 +250,7 @@ describe("server actions", () => {
         ),
       ).rejects.toThrow("NEXT_REDIRECT:/review/queue");
 
-      expect(mocks.requireRole).toHaveBeenCalledWith("reviewer");
+      expect(mocks.requireReviewerGameContext).toHaveBeenCalled();
       expect(update).toHaveBeenCalledWith({
         status: "accepted_with_edits",
         reviewer_id: "reviewer-id",

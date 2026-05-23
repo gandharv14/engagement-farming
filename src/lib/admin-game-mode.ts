@@ -211,6 +211,10 @@ export async function clearAdminGameModeCookie() {
   cookieStore.delete(adminGameModeCookie);
 }
 
+export async function getAdminGameModeTarget() {
+  return readAdminGameModeCookie();
+}
+
 export async function getOrCreateAdminShadowTasker(admin: AppUserRow): Promise<AppUserRow | null> {
   const supabase = await createSupabaseServerClient();
   const auth0Sub = getShadowAuth0Sub(admin);

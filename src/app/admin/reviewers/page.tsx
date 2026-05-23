@@ -1,8 +1,10 @@
 import { AppShell } from "@/components/app/app-shell";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase";
+import { demoteReviewerToTasker } from "../role-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,7 @@ export default async function AdminReviewersPage() {
                 <TableHead>Reviewed rows</TableHead>
                 <TableHead>Clean pass rate</TableHead>
                 <TableHead>Avg score</TableHead>
+                <TableHead className="text-right">Role</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -49,6 +52,13 @@ export default async function AdminReviewersPage() {
                     <TableCell>{reviewerRows.length}</TableCell>
                     <TableCell>{reviewerRows.length ? `${Math.round((clean / reviewerRows.length) * 100)}%` : "0%"}</TableCell>
                     <TableCell>{avgScore.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      <form action={demoteReviewerToTasker.bind(null, reviewer.id)}>
+                        <Button type="submit" size="sm" variant="secondary">
+                          Demote to Tasker
+                        </Button>
+                      </form>
+                    </TableCell>
                   </TableRow>
                 );
               })}
