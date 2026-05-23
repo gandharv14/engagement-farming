@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { intentionalNonSidebarRoutes, sidebarNavigationLinksByRole } from "./navigation";
+import { getShellNavigationLinks, intentionalNonSidebarRoutes, sidebarNavigationLinksByRole } from "./navigation";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const appDir = path.join(repoRoot, "src", "app");
@@ -45,5 +45,13 @@ describe("navigation coverage", () => {
     const coveredRoutes = new Set<string>([...sidebarRoutes, ...documentedRoutes]);
 
     expect(pageRoutes.filter((route) => !coveredRoutes.has(route))).toEqual([]);
+  });
+});
+
+describe("shell navigation", () => {
+  it("keeps admin navigation available while an admin is in reviewer mode", () => {
+    const links = getShellNavigationLinks("admin", "reviewer");
+
+    expect(links.map((link) => link.href)).toEqual(expect.arrayContaining(["/review/queue", "/admin/reviewers"]));
   });
 });

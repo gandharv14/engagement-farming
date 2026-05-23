@@ -6,7 +6,7 @@ import { GameRulesDialog } from "@/components/app/game-rules-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { getNavigationHomeHref, getNavigationLinksForRole, type NavigationIconName } from "@/lib/navigation";
+import { getNavigationHomeHref, getShellNavigationLinks, type NavigationIconName } from "@/lib/navigation";
 import type { AppRole } from "@/lib/roles";
 
 const navigationIcons = {
@@ -37,6 +37,7 @@ export function AppShell({
 }) {
   const activeNavigationRole = navigationRole ?? role;
   const homeHref = getNavigationHomeHref(activeNavigationRole);
+  const navigationLinks = getShellNavigationLinks(role, navigationRole);
 
   return (
     <div className="arena-bg relative min-h-screen overflow-hidden bg-background">
@@ -53,7 +54,7 @@ export function AppShell({
             </div>
           </Link>
           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-            <GameRulesDialog autoOpen={activeNavigationRole !== "admin"} />
+            <GameRulesDialog autoOpen={role !== "admin"} />
             <Badge variant="secondary" className="border-arena-purple/40 bg-arena-purple/15 text-arena-cyan capitalize">
               {role}
             </Badge>
@@ -93,7 +94,7 @@ export function AppShell({
       <div className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[220px_1fr]">
         <aside className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
           <nav className="arena-panel flex flex-wrap gap-2 overflow-visible rounded-2xl p-2 lg:flex-col">
-            {getNavigationLinksForRole(activeNavigationRole).map((link) => {
+            {navigationLinks.map((link) => {
               const Icon = navigationIcons[link.icon];
 
               return (

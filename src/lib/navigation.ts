@@ -50,6 +50,17 @@ export function getNavigationLinksForRole(role: AppRole) {
   return sidebarNavigationLinksByRole[role];
 }
 
+export function getShellNavigationLinks(role: AppRole, navigationRole?: AppRole) {
+  const activeNavigationRole = navigationRole ?? role;
+  const activeLinks = getNavigationLinksForRole(activeNavigationRole);
+
+  if (role === "admin" && activeNavigationRole !== "admin") {
+    return [...activeLinks, ...getNavigationLinksForRole("admin")];
+  }
+
+  return activeLinks;
+}
+
 export function getNavigationHomeHref(role: AppRole) {
   if (role === "admin") {
     return "/admin";
