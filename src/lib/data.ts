@@ -708,14 +708,15 @@ function buildReviewerDashboardRow({
 }
 
 export async function getReviewerDashboard(): Promise<ReviewerDashboardData> {
-  const supabase = await createSupabaseServerClient();
+  const emptyDashboard = {
+    availableRows: [],
+    reservedRows: [],
+    reviewedRows: [],
+  };
+  const supabase = await createSupabaseServerClient().catch(() => null);
 
   if (!supabase) {
-    return {
-      availableRows: [],
-      reservedRows: [],
-      reviewedRows: [],
-    };
+    return emptyDashboard;
   }
 
   const now = new Date();
@@ -726,33 +727,32 @@ export async function getReviewerDashboard(): Promise<ReviewerDashboardData> {
     // The dashboard can still render by treating expired holds as available below.
   }
 
-  const [pendingResult, reviewedResult] = await Promise.all([
-    supabase
-      .from("rows")
-      .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, reviewer_id, reviewed_at, metadata")
-      .eq("status", "pending_review")
-      .order("submitted_at", { ascending: true }),
-    supabase
-      .from("rows")
-      .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, reviewer_id, reviewed_at, metadata")
-      .in("status", ["accepted_clean", "rejected"])
-      .order("reviewed_at", { ascending: false }),
-  ]);
+  let pendingResult;
+  let reviewedResult;
 
-  if (pendingResult.error) {
-    throw new Error(pendingResult.error.message);
+  try {
+    [pendingResult, reviewedResult] = await Promise.all([
+      supabase
+        .from("rows")
+        .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, reviewer_id, reviewed_at, metadata")
+        .eq("status", "pending_review")
+        .order("submitted_at", { ascending: true }),
+      supabase
+        .from("rows")
+        .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, reviewer_id, reviewed_at, metadata")
+        .in("status", ["accepted_clean", "rejected"])
+        .order("reviewed_at", { ascending: false }),
+    ]);
+  } catch {
+    return emptyDashboard;
   }
 
-  if (reviewedResult.error) {
-    throw new Error(reviewedResult.error.message);
-  }
-
-  const pendingRows = (pendingResult.data ?? []) as RawReviewerDashboardRow[];
-  const reviewedRows = (reviewedResult.data ?? []) as RawReviewerDashboardRow[];
+  const pendingRows = pendingResult.error ? [] : ((pendingResult.data ?? []) as RawReviewerDashboardRow[]);
+  const reviewedRows = reviewedResult.error ? [] : ((reviewedResult.data ?? []) as RawReviewerDashboardRow[]);
   const pendingTaskerContexts = await getTaskerStreakContexts(
     supabase,
     pendingRows.map((row) => row.tasker_id),
-  );
+  ).catch(() => new Map());
   const [reviewedTaskerDisplayNames, reviewerDisplayNames] = await Promise.all([
     getUserDisplayNames(
       supabase,
@@ -767,7 +767,7 @@ export async function getReviewerDashboard(): Promise<ReviewerDashboardData> {
       ],
       reviewerDisplayName,
     ),
-  ]);
+  ]).catch(() => [new Map<string, string>(), new Map<string, string>()]);
 
   const availableRows = pendingRows
     .filter((row) => !isReviewReservationActive(row.reserved_until, now))
@@ -813,7 +813,12 @@ export async function getReviewDetail(rowId: string, reviewerId: string): Promis
   }
 
   const now = new Date();
-  await releaseExpiredReservations(supabase, now);
+
+  try {
+    await releaseExpiredReservations(supabase, now);
+  } catch {
+    // Detail access is validated below; cleanup failure should not hide active reviews.
+  }
 
   const { data, error } = await supabase
     .from("rows")
@@ -836,7 +841,7 @@ export async function getReviewDetail(rowId: string, reviewerId: string): Promis
     return null;
   }
 
-  const contexts = await getTaskerStreakContexts(supabase, [row.tasker_id]);
+  const contexts = await getTaskerStreakContexts(supabase, [row.tasker_id]).catch(() => new Map());
   const context = contexts.get(row.tasker_id);
 
   return {

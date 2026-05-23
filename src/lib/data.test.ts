@@ -624,6 +624,27 @@ describe("data helpers", () => {
     });
   });
 
+  it("keeps the reviewer dashboard loadable when row reads are unavailable", async () => {
+    const supabase = createSupabaseMock({
+      tables: {
+        rows: ({ operations }) => {
+          if (operations.some((operation) => operation.name === "update")) {
+            return { data: null, error: null };
+          }
+
+          return { data: null, error: { message: "row read denied" } };
+        },
+      },
+    });
+    mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+    await expect(getReviewerDashboard()).resolves.toEqual({
+      availableRows: [],
+      reservedRows: [],
+      reviewedRows: [],
+    });
+  });
+
   it("surfaces review queue query errors instead of rendering an empty queue", async () => {
     const supabase = createSupabaseMock({
       tables: {
