@@ -13,7 +13,7 @@ vi.mock("@/components/app/game-rules-dialog", () => ({
 import { AppShell } from "./app-shell";
 
 describe("AppShell", () => {
-  it("renders the reviewers tab for admins", () => {
+  it("renders every admin tab", () => {
     const html = renderToStaticMarkup(
       React.createElement(
         AppShell,
@@ -25,7 +25,19 @@ describe("AppShell", () => {
       ),
     );
 
-    expect(html).toContain('href="/admin/reviewers"');
-    expect(html).toContain("Reviewers");
+    for (const [href, label] of [
+      ["/admin", "Operations"],
+      ["/admin/game-mode", "Admin Mode"],
+      ["/admin/reviewers", "Reviewers"],
+      ["/admin/taskers", "Taskers"],
+      ["/admin/config", "Config"],
+      ["/admin/economics", "Economics"],
+      ["/admin/goodies", "Goodies"],
+      ["/admin/guilds", "Guilds"],
+      ["/admin/payouts", "Payouts"],
+    ]) {
+      expect(html).toContain(`href="${href}"`);
+      expect(html).toContain(label);
+    }
   });
 });

@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { auth0 } from "@/lib/auth0";
+import { e2eRoleHeader, getE2EAuthRole } from "@/lib/e2e-auth";
 
 const protectedPagePrefixes = [
   "/admin",
@@ -14,7 +15,7 @@ const protectedPagePrefixes = [
 ] as const;
 
 export async function proxy(request: NextRequest) {
-  if (request.method === "GET" && isProtectedPagePath(request.nextUrl.pathname) && !(await hasSession(request))) {
+  if (request.method === "GET" && isProtectedPagePath(request.nextUrl.pathname) && !(await hasSession(request)) && !hasE2EAuth(request)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("returnTo", `${request.nextUrl.pathname}${request.nextUrl.search}`);
 
@@ -40,4 +41,8 @@ async function hasSession(request: NextRequest) {
 
 function isProtectedPagePath(pathname: string) {
   return pathname === "/" || protectedPagePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function hasE2EAuth(request: NextRequest) {
+  return Boolean(getE2EAuthRole(request.headers.get(e2eRoleHeader)));
 }

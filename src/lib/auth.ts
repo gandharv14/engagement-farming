@@ -1,7 +1,9 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ensureAppUser } from "@/lib/app-user";
 import { auth0 } from "@/lib/auth0";
+import { e2eRoleHeader, getE2EAuthRole } from "@/lib/e2e-auth";
 import { AppRole, Claims } from "@/lib/roles";
 
 export type AppSessionUser = Claims & {
@@ -9,6 +11,12 @@ export type AppSessionUser = Claims & {
 };
 
 export async function getCurrentUser(): Promise<AppSessionUser | null> {
+  const e2eUser = await getE2EUser();
+
+  if (e2eUser) {
+    return e2eUser;
+  }
+
   try {
     const session = await auth0.getSession();
 
@@ -29,6 +37,21 @@ export async function getCurrentUser(): Promise<AppSessionUser | null> {
   } catch {
     return null;
   }
+}
+
+async function getE2EUser(): Promise<AppSessionUser | null> {
+  const role = getE2EAuthRole((await headers()).get(e2eRoleHeader));
+
+  if (!role) {
+    return null;
+  }
+
+  return {
+    sub: `e2e|${role}`,
+    email: `${role}@e2e.test`,
+    name: `E2E ${role}`,
+    role,
+  };
 }
 
 export async function requireRole(allowed: AppRole | AppRole[]) {

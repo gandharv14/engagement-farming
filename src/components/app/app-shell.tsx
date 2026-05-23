@@ -60,12 +60,13 @@ export function AppShell({
             </Badge>
             {gameMode ? <Badge className="bg-arena-gold text-background">Game mode</Badge> : null}
             <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{name}</span>
-            <Button asChild variant="ghost" size="sm" className="hover:bg-arena-pink/10 hover:text-arena-pink">
-              <a href="/api/auth/logout">
-                <LogOut className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Sign out</span>
-              </a>
-            </Button>
+            <a
+              href="/api/auth/logout"
+              className="inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-lg border border-transparent px-2.5 text-[0.8rem] font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-arena-pink/10 hover:text-arena-pink focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <LogOut className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Sign out</span>
+            </a>
           </div>
         </div>
       </header>
@@ -98,17 +99,14 @@ export function AppShell({
               const Icon = navigationIcons[link.icon];
 
               return (
-                <Button
+                <Link
                   key={link.href}
-                  asChild
-                  variant="ghost"
-                  className="justify-start border border-transparent text-muted-foreground hover:border-arena-cyan/35 hover:bg-arena-cyan/10 hover:text-foreground"
+                  href={link.href}
+                  className="inline-flex h-8 shrink-0 items-center justify-start gap-1.5 rounded-lg border border-transparent px-2.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-all outline-none select-none hover:border-arena-cyan/35 hover:bg-arena-cyan/10 hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
-                  <Link href={link.href}>
-                    <Icon className="mr-2 h-4 w-4" />
-                    {link.label}
-                  </Link>
-                </Button>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {link.label}
+                </Link>
               );
             })}
           </nav>
