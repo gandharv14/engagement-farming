@@ -118,6 +118,20 @@ export type ReviewDetail = ReviewQueueRow & {
   status: string;
 };
 
+export type ReviewerDashboardRow = ReviewQueueRow & {
+  status: string;
+  reviewer_id: string | null;
+  reviewed_at: string | null;
+  reserved_by_display_name: string | null;
+  reviewer_display_name: string | null;
+};
+
+export type ReviewerDashboardData = {
+  availableRows: ReviewerDashboardRow[];
+  reservedRows: ReviewerDashboardRow[];
+  reviewedRows: ReviewerDashboardRow[];
+};
+
 export type AdminDashboardData = {
   acceptedRows: number;
   targetRows: number;
@@ -241,6 +255,41 @@ function buildMilestoneRoadmap(milestones: { threshold_rows: number; tier_label:
 
 function taskerDisplayName(tasker: { display_name?: string | null; email?: string | null } | null | undefined, taskerId: string) {
   return tasker?.display_name ?? tasker?.email ?? `Tasker ${taskerId.slice(0, 8)}`;
+}
+
+function reviewerDisplayName(reviewer: { display_name?: string | null; email?: string | null } | null | undefined, reviewerId: string) {
+  return reviewer?.display_name ?? reviewer?.email ?? `Reviewer ${reviewerId.slice(0, 8)}`;
+}
+
+async function getUserDisplayNames(
+  supabase: SupabaseServerClient,
+  userIds: string[],
+  formatDisplayName: (user: { display_name?: string | null; email?: string | null } | null, userId: string) => string,
+) {
+  const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  const displayNames = new Map<string, string>();
+
+  if (!uniqueUserIds.length) {
+    return displayNames;
+  }
+
+  const { data, error } = await supabase.from("users").select("id, display_name, email").in("id", uniqueUserIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  ((data ?? []) as { id: string; display_name: string | null; email: string | null }[]).forEach((user) => {
+    displayNames.set(user.id, formatDisplayName(user, user.id));
+  });
+
+  uniqueUserIds.forEach((userId) => {
+    if (!displayNames.has(userId)) {
+      displayNames.set(userId, formatDisplayName(null, userId));
+    }
+  });
+
+  return displayNames;
 }
 
 async function getTaskerStreakContexts(supabase: SupabaseServerClient, taskerIds: string[]) {
@@ -585,6 +634,12 @@ type RawReviewQueueRow = {
   metadata: Record<string, unknown>;
 };
 
+type RawReviewerDashboardRow = RawReviewQueueRow & {
+  status: string;
+  reviewer_id: string | null;
+  reviewed_at: string | null;
+};
+
 export async function getReviewQueue(reviewerId?: string): Promise<ReviewQueueRow[]> {
   const supabase = await createSupabaseServerClient();
 
@@ -623,6 +678,122 @@ export async function getReviewQueue(reviewerId?: string): Promise<ReviewQueueRo
       tasker_potential_streak_days: context?.potentialStreak ?? 0,
     };
   });
+}
+
+function buildReviewerDashboardRow({
+  row,
+  taskerContexts,
+  taskerDisplayNames,
+  reviewerDisplayNames,
+}: {
+  row: RawReviewerDashboardRow;
+  taskerContexts: Awaited<ReturnType<typeof getTaskerStreakContexts>>;
+  taskerDisplayNames: Map<string, string>;
+  reviewerDisplayNames: Map<string, string>;
+}): ReviewerDashboardRow {
+  const taskerContext = taskerContexts.get(row.tasker_id);
+
+  return {
+    ...row,
+    tasker_display_name: taskerContext?.displayName ?? taskerDisplayNames.get(row.tasker_id) ?? taskerDisplayName(null, row.tasker_id),
+    tasker_current_streak_days: taskerContext?.currentStreak ?? 0,
+    tasker_potential_streak_days: taskerContext?.potentialStreak ?? taskerContext?.currentStreak ?? 0,
+    reserved_by_display_name: row.reserved_by ? (reviewerDisplayNames.get(row.reserved_by) ?? reviewerDisplayName(null, row.reserved_by)) : null,
+    reviewer_display_name: row.reviewer_id ? (reviewerDisplayNames.get(row.reviewer_id) ?? reviewerDisplayName(null, row.reviewer_id)) : null,
+  };
+}
+
+export async function getReviewerDashboard(): Promise<ReviewerDashboardData> {
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    return {
+      availableRows: [],
+      reservedRows: [],
+      reviewedRows: [],
+    };
+  }
+
+  const now = new Date();
+  await releaseExpiredReservations(supabase, now);
+
+  const [pendingResult, reviewedResult] = await Promise.all([
+    supabase
+      .from("rows")
+      .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, reviewer_id, reviewed_at, metadata")
+      .eq("status", "pending_review")
+      .order("submitted_at", { ascending: true }),
+    supabase
+      .from("rows")
+      .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, reviewer_id, reviewed_at, metadata")
+      .in("status", ["accepted_clean", "rejected"])
+      .order("reviewed_at", { ascending: false }),
+  ]);
+
+  if (pendingResult.error) {
+    throw new Error(pendingResult.error.message);
+  }
+
+  if (reviewedResult.error) {
+    throw new Error(reviewedResult.error.message);
+  }
+
+  const pendingRows = (pendingResult.data ?? []) as RawReviewerDashboardRow[];
+  const reviewedRows = (reviewedResult.data ?? []) as RawReviewerDashboardRow[];
+  const pendingTaskerContexts = await getTaskerStreakContexts(
+    supabase,
+    pendingRows.map((row) => row.tasker_id),
+  );
+  const [reviewedTaskerDisplayNames, reviewerDisplayNames] = await Promise.all([
+    getUserDisplayNames(
+      supabase,
+      reviewedRows.map((row) => row.tasker_id),
+      taskerDisplayName,
+    ),
+    getUserDisplayNames(
+      supabase,
+      [
+        ...pendingRows.map((row) => row.reserved_by).filter((userId): userId is string => Boolean(userId)),
+        ...reviewedRows.map((row) => row.reviewer_id).filter((userId): userId is string => Boolean(userId)),
+      ],
+      reviewerDisplayName,
+    ),
+  ]);
+
+  const availableRows = pendingRows
+    .filter((row) => !isReviewReservationActive(row.reserved_until, now))
+    .map((row) =>
+      buildReviewerDashboardRow({
+        row,
+        taskerContexts: pendingTaskerContexts,
+        taskerDisplayNames: reviewedTaskerDisplayNames,
+        reviewerDisplayNames,
+      }),
+    );
+  const reservedRows = pendingRows
+    .filter((row) => isReviewReservationActive(row.reserved_until, now))
+    .map((row) =>
+      buildReviewerDashboardRow({
+        row,
+        taskerContexts: pendingTaskerContexts,
+        taskerDisplayNames: reviewedTaskerDisplayNames,
+        reviewerDisplayNames,
+      }),
+    );
+  const hydratedReviewedRows = reviewedRows.map((row) =>
+    buildReviewerDashboardRow({
+      row,
+      taskerContexts: new Map(),
+      taskerDisplayNames: reviewedTaskerDisplayNames,
+      reviewerDisplayNames,
+    }),
+  );
+
+  return {
+    availableRows,
+    reservedRows,
+    reviewedRows: hydratedReviewedRows,
+  };
 }
 
 export async function getReviewDetail(rowId: string, reviewerId: string): Promise<ReviewDetail | null> {

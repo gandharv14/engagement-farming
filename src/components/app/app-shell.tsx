@@ -18,7 +18,7 @@ const taskerLinks = [
 ];
 
 const reviewerLinks = [
-  { href: "/review/queue", label: "Review Queue", icon: ShieldCheck },
+  { href: "/review/queue", label: "Reviewer Dashboard", icon: ShieldCheck },
 ];
 
 const adminLinks = [

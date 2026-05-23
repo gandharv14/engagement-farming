@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase", () => ({
   createSupabaseServerClient: mocks.createSupabaseServerClient,
 }));
 
-import { formatCurrency, formatSource, getAdminDashboard, getReviewDetail, getReviewQueue, getTaskerDashboard } from "./data";
+import { formatCurrency, formatSource, getAdminDashboard, getReviewDetail, getReviewQueue, getReviewerDashboard, getTaskerDashboard } from "./data";
 
 type QueryOperation = {
   name: string;
@@ -416,6 +416,140 @@ describe("data helpers", () => {
     const queue = await getReviewQueue("reviewer-one");
 
     expect(queue.map((row) => row.id)).toEqual(["available", "owned", "expired"]);
+  });
+
+  it("builds a reviewer dashboard with available, reserved, and reviewed rows across reviewers", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-22T16:00:00.000Z"));
+    const supabase = createSupabaseMock({
+      rpc: (_name, params) => {
+        const includePending = Boolean(params.p_include_pending);
+
+        return {
+          data: { current_streak_days: includePending ? 4 : 2, longest_streak_days: 4 },
+          error: null,
+        };
+      },
+      tables: {
+        rows: ({ operations }) => {
+          if (operations.some((operation) => operation.name === "update")) {
+            return { data: null, error: null };
+          }
+
+          if (operations.some((operation) => operation.name === "in")) {
+            return {
+              data: [
+                {
+                  id: "accepted",
+                  tasker_id: "tasker-two",
+                  submitted_at: "2026-05-21T10:00:00.000Z",
+                  status: "accepted_clean",
+                  reserved_by: null,
+                  reserved_until: null,
+                  reviewer_id: "reviewer-two",
+                  reviewed_at: "2026-05-22T15:30:00.000Z",
+                  metadata: { problem_id: "accepted-problem", task_type: "Testing", token_count: 2400 },
+                },
+                {
+                  id: "rejected",
+                  tasker_id: "tasker-one",
+                  submitted_at: "2026-05-20T10:00:00.000Z",
+                  status: "rejected",
+                  reserved_by: null,
+                  reserved_until: null,
+                  reviewer_id: "reviewer-one",
+                  reviewed_at: "2026-05-22T15:00:00.000Z",
+                  metadata: { problem_id: "rejected-problem", task_type: "Debugging", token_count: 1800 },
+                },
+              ],
+              error: null,
+            };
+          }
+
+          return {
+            data: [
+              {
+                id: "available",
+                tasker_id: "tasker-one",
+                submitted_at: "2026-05-22T10:00:00.000Z",
+                status: "pending_review",
+                reserved_by: null,
+                reserved_until: null,
+                reviewer_id: null,
+                reviewed_at: null,
+                metadata: { problem_id: "available-problem" },
+              },
+              {
+                id: "reserved-owned",
+                tasker_id: "tasker-one",
+                submitted_at: "2026-05-22T11:00:00.000Z",
+                status: "pending_review",
+                reserved_by: "reviewer-one",
+                reserved_until: "2026-05-22T16:04:00.000Z",
+                reviewer_id: null,
+                reviewed_at: null,
+                metadata: { problem_id: "owned-problem" },
+              },
+              {
+                id: "reserved-other",
+                tasker_id: "tasker-two",
+                submitted_at: "2026-05-22T12:00:00.000Z",
+                status: "pending_review",
+                reserved_by: "reviewer-two",
+                reserved_until: "2026-05-22T16:04:00.000Z",
+                reviewer_id: null,
+                reviewed_at: null,
+                metadata: { problem_id: "other-problem" },
+              },
+              {
+                id: "expired",
+                tasker_id: "tasker-two",
+                submitted_at: "2026-05-22T13:00:00.000Z",
+                status: "pending_review",
+                reserved_by: "reviewer-two",
+                reserved_until: "2026-05-22T15:59:00.000Z",
+                reviewer_id: null,
+                reviewed_at: null,
+                metadata: { problem_id: "expired-problem" },
+              },
+            ],
+            error: null,
+          };
+        },
+        users: {
+          data: [
+            { id: "tasker-one", display_name: "Tara Tasker", email: "tara@example.com" },
+            { id: "tasker-two", display_name: null, email: "fallback@example.com" },
+            { id: "reviewer-one", display_name: "Riley Reviewer", email: "riley@example.com" },
+            { id: "reviewer-two", display_name: null, email: "reviewer-two@example.com" },
+          ],
+          error: null,
+        },
+      },
+    });
+    mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+    const dashboard = await getReviewerDashboard();
+
+    expect(dashboard.availableRows.map((row) => row.id)).toEqual(["available", "expired"]);
+    expect(dashboard.reservedRows.map((row) => row.id)).toEqual(["reserved-owned", "reserved-other"]);
+    expect(dashboard.reviewedRows.map((row) => row.id)).toEqual(["accepted", "rejected"]);
+    expect(dashboard.reservedRows.find((row) => row.id === "reserved-owned")).toMatchObject({
+      reserved_by: "reviewer-one",
+      reserved_by_display_name: "Riley Reviewer",
+      tasker_display_name: "Tara Tasker",
+      tasker_potential_streak_days: 4,
+    });
+    expect(dashboard.reservedRows.find((row) => row.id === "reserved-other")).toMatchObject({
+      reserved_by: "reviewer-two",
+      reserved_by_display_name: "reviewer-two@example.com",
+    });
+    expect(dashboard.reviewedRows.find((row) => row.id === "accepted")).toMatchObject({
+      status: "accepted_clean",
+      reviewer_id: "reviewer-two",
+      reviewer_display_name: "reviewer-two@example.com",
+      tasker_display_name: "fallback@example.com",
+    });
   });
 
   it("surfaces review queue query errors instead of rendering an empty queue", async () => {

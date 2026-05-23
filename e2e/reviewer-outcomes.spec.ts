@@ -76,7 +76,7 @@ test.describe("reviewer outcomes", () => {
       reserved_by: null,
       reserved_until: null,
     });
-    await expect(page.getByText(`${prefix}-pending`)).toHaveCount(0);
+    await expect(page.getByRole("row", { name: new RegExp(`${prefix}-pending`) })).toHaveCount(0);
 
     await cleanupByPrefix(prefix);
   });

@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 import { reviewRow } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
@@ -31,8 +33,18 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
       <div className="space-y-6">
         <div className="arena-panel rounded-3xl p-5">
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Reserved Review</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Review Row</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Pass or fail this row before the reservation expires.</p>
+          <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight">Review Row</h1>
+              <p className="mt-2 text-sm text-muted-foreground">Pass or fail this row before the reservation expires.</p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/review/queue">
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to reviewer dashboard
+              </Link>
+            </Button>
+          </div>
         </div>
         <ReservationTimer rowId={row.id} reservedUntil={row.reserved_until!} />
         <Card>
@@ -98,6 +110,9 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
                   Fail
                 </Button>
               </div>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/review/queue">Return to reviewer dashboard without submitting</Link>
+              </Button>
             </form>
           </CardContent>
         </Card>

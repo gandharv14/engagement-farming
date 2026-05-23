@@ -78,7 +78,7 @@ test.describe("reviewer flow", () => {
 
     await page.goto("/review/queue");
     await dismissRulesModal(page);
-    await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Reviewer Dashboard" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Streak if accepted" })).toBeVisible();
     const queuedRow = page.getByRole("row", { name: new RegExp(`${prefix}-pending.*Debugging.*4,242`) });
     await expect(queuedRow).toBeVisible();
@@ -86,11 +86,20 @@ test.describe("reviewer flow", () => {
 
     await dismissRulesModal(page);
     await expect(page.getByRole("heading", { name: "Review Row" })).toBeVisible();
+    await page.getByRole("link", { name: "Back to reviewer dashboard" }).click();
+    await expect(page).toHaveURL(/\/review\/queue/);
+    await page.getByRole("tab", { name: "Reserved" }).click();
+    const reservedRow = page.getByRole("row", { name: new RegExp(`${prefix}-pending.*Your reservation`) });
+    await expect(reservedRow).toBeVisible();
+    await reservedRow.getByRole("button", { name: "Resume" }).click();
+    await expect(page.getByRole("heading", { name: "Review Row" })).toBeVisible();
     await expect(page.getByText("Reservation expires in")).toBeVisible();
     await expect(page.getByLabel("Reviewer score")).toHaveCount(0);
     await page.getByLabel("Optional notes").fill("E2E clean pass");
     await page.getByRole("button", { name: "Pass" }).click();
     await expect(page).toHaveURL(/\/review\/queue/);
+    await page.getByRole("tab", { name: "Reviewed" }).click();
+    await expect(page.getByRole("row", { name: new RegExp(`${prefix}-pending.*Passed`) })).toBeVisible();
 
     await cleanupByPrefix(prefix);
   });
