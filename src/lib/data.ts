@@ -276,7 +276,11 @@ async function getUserDisplayNames(
   const { data, error } = await supabase.from("users").select("id, display_name, email").in("id", uniqueUserIds);
 
   if (error) {
-    throw new Error(error.message);
+    uniqueUserIds.forEach((userId) => {
+      displayNames.set(userId, formatDisplayName(null, userId));
+    });
+
+    return displayNames;
   }
 
   ((data ?? []) as { id: string; display_name: string | null; email: string | null }[]).forEach((user) => {
@@ -715,7 +719,12 @@ export async function getReviewerDashboard(): Promise<ReviewerDashboardData> {
   }
 
   const now = new Date();
-  await releaseExpiredReservations(supabase, now);
+
+  try {
+    await releaseExpiredReservations(supabase, now);
+  } catch {
+    // The dashboard can still render by treating expired holds as available below.
+  }
 
   const [pendingResult, reviewedResult] = await Promise.all([
     supabase

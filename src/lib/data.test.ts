@@ -433,7 +433,7 @@ describe("data helpers", () => {
       tables: {
         rows: ({ operations }) => {
           if (operations.some((operation) => operation.name === "update")) {
-            return { data: null, error: null };
+            return { data: null, error: { message: "cleanup denied" } };
           }
 
           if (operations.some((operation) => operation.name === "in")) {
@@ -549,6 +549,78 @@ describe("data helpers", () => {
       reviewer_id: "reviewer-two",
       reviewer_display_name: "reviewer-two@example.com",
       tasker_display_name: "fallback@example.com",
+    });
+  });
+
+  it("keeps the reviewer dashboard loadable when display-name hydration is unavailable", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-22T16:00:00.000Z"));
+    const supabase = createSupabaseMock({
+      rpc: () => ({
+        data: { current_streak_days: 1, longest_streak_days: 1 },
+        error: null,
+      }),
+      tables: {
+        rows: ({ operations }) => {
+          if (operations.some((operation) => operation.name === "update")) {
+            return { data: null, error: null };
+          }
+
+          if (operations.some((operation) => operation.name === "in")) {
+            return {
+              data: [
+                {
+                  id: "reviewed",
+                  tasker_id: "tasker-two",
+                  submitted_at: "2026-05-21T10:00:00.000Z",
+                  status: "accepted_clean",
+                  reserved_by: null,
+                  reserved_until: null,
+                  reviewer_id: "reviewer-two",
+                  reviewed_at: "2026-05-22T15:30:00.000Z",
+                  metadata: { problem_id: "reviewed-problem" },
+                },
+              ],
+              error: null,
+            };
+          }
+
+          return {
+            data: [
+              {
+                id: "reserved",
+                tasker_id: "tasker-one",
+                submitted_at: "2026-05-22T11:00:00.000Z",
+                status: "pending_review",
+                reserved_by: "reviewer-one",
+                reserved_until: "2026-05-22T16:04:00.000Z",
+                reviewer_id: null,
+                reviewed_at: null,
+                metadata: { problem_id: "reserved-problem" },
+              },
+            ],
+            error: null,
+          };
+        },
+        users: {
+          data: null,
+          error: { message: "display lookup denied" },
+        },
+      },
+    });
+    mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+    const dashboard = await getReviewerDashboard();
+
+    expect(dashboard.reservedRows).toHaveLength(1);
+    expect(dashboard.reviewedRows).toHaveLength(1);
+    expect(dashboard.reservedRows[0]).toMatchObject({
+      tasker_display_name: "Tasker tasker-o",
+      reserved_by_display_name: "Reviewer reviewer",
+    });
+    expect(dashboard.reviewedRows[0]).toMatchObject({
+      tasker_display_name: "Tasker tasker-t",
+      reviewer_display_name: "Reviewer reviewer",
     });
   });
 
