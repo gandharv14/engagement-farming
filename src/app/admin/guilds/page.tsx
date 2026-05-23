@@ -58,7 +58,7 @@ export default async function AdminGuildsPage() {
         </div>
 
         <section className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Create Guild</CardTitle>
               <CardDescription>Guild names are visible to all roles.</CardDescription>
@@ -76,19 +76,19 @@ export default async function AdminGuildsPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Assign Tasker</CardTitle>
               <CardDescription>Assigning a tasker moves them out of any previous guild.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form action={assignGuildMember} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-                <div className="grid gap-2">
+              <form action={assignGuildMember} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                <div className="grid min-w-0 gap-2">
                   <Label htmlFor="userId">Tasker</Label>
                   <select
                     id="userId"
                     name="userId"
-                    className="h-10 rounded-md border bg-background px-3 text-sm"
+                    className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
                     required
                     disabled={!taskerRows.length}
                   >
@@ -101,12 +101,12 @@ export default async function AdminGuildsPage() {
                     ))}
                   </select>
                 </div>
-                <div className="grid gap-2">
+                <div className="grid min-w-0 gap-2">
                   <Label htmlFor="guildId">Guild</Label>
                   <select
                     id="guildId"
                     name="guildId"
-                    className="h-10 rounded-md border bg-background px-3 text-sm"
+                    className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
                     required
                     disabled={!guildRows.length}
                   >
@@ -118,7 +118,7 @@ export default async function AdminGuildsPage() {
                     ))}
                   </select>
                 </div>
-                <Button type="submit" disabled={!guildRows.length || !taskerRows.length}>
+                <Button type="submit" className="w-full md:w-auto" disabled={!guildRows.length || !taskerRows.length}>
                   Assign
                 </Button>
               </form>
