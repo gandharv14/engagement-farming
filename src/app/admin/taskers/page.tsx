@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/data";
 import { createSupabaseServerClient } from "@/lib/supabase";
-import { promoteTaskerToReviewer } from "../role-actions";
+import { promoteTaskerToReviewer, removeTasker } from "../role-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ export default async function AdminTaskersPage() {
               <TableHead>Acceptance rate</TableHead>
               <TableHead>Streak</TableHead>
               <TableHead className="text-right">Total cost</TableHead>
-              <TableHead className="text-right">Role</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -49,21 +49,41 @@ export default async function AdminTaskersPage() {
                 .filter((earning) => earning.user_id === tasker.id)
                 .reduce((sum, earning) => sum + earning.amount_cents, 0);
               const streak = streakList.find((item) => item.user_id === tasker.id)?.current_streak_days ?? 0;
+              const taskerName = tasker.display_name ?? tasker.email ?? "Tasker";
               const isAdminGameProfile = tasker.auth0_sub.startsWith("admin-game|");
 
               return (
                 <TableRow key={tasker.id}>
-                  <TableCell>{tasker.display_name ?? tasker.email ?? "Tasker"}</TableCell>
+                  <TableCell>{taskerName}</TableCell>
                   <TableCell>{taskerRows.length}</TableCell>
                   <TableCell>{taskerRows.length ? `${Math.round((accepted / taskerRows.length) * 100)}%` : "0%"}</TableCell>
                   <TableCell>{streak} days</TableCell>
                   <TableCell className="text-right">{formatCurrency(cost)}</TableCell>
                   <TableCell className="text-right">
-                    <form action={promoteTaskerToReviewer.bind(null, tasker.id)}>
-                      <Button type="submit" size="sm" variant="secondary" disabled={isAdminGameProfile}>
-                        Promote to Reviewer
-                      </Button>
-                    </form>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <form action={promoteTaskerToReviewer.bind(null, tasker.id)}>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          variant="secondary"
+                          disabled={isAdminGameProfile}
+                          aria-label={`Promote ${taskerName} to Reviewer`}
+                        >
+                          Promote to Reviewer
+                        </Button>
+                      </form>
+                      <form action={removeTasker.bind(null, tasker.id)}>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          variant="destructive"
+                          disabled={isAdminGameProfile}
+                          aria-label={`Remove ${taskerName}`}
+                        >
+                          Remove
+                        </Button>
+                      </form>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

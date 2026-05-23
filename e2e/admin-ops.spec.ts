@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 import { hasStorageState, storageStatePath } from "./support/auth";
-import { cleanupByPrefix, createE2EUser, hasSupabaseAdminEnv, seedPayoutEarning } from "./support/db";
+import { cleanupByPrefix, createE2EUser, getUserById, hasSupabaseAdminEnv, seedPayoutEarning } from "./support/db";
 import { dismissRulesModal } from "./support/rules";
 
 test.describe("admin ops surfaces", () => {
@@ -59,5 +59,33 @@ test.describe("admin payout export", () => {
     expect(csv.split("\n")).toContain(`"${user.id}","${user.email}","${user.display_name}","1111"`);
 
     await cleanupByPrefix(prefix);
+  });
+});
+
+test.describe("admin tasker roster", () => {
+  test.skip(!hasSupabaseAdminEnv(), "Missing Supabase service-role env for e2e seed/cleanup.");
+  test.use({ extraHTTPHeaders: { "x-e2e-role": "admin" } });
+
+  test("removes a tasker from the portal", async ({ page }, testInfo) => {
+    const prefix = `e2e-remove-tasker-${testInfo.workerIndex}-${Date.now()}`;
+    await cleanupByPrefix(prefix);
+
+    try {
+      const tasker = await createE2EUser(prefix);
+      const taskerName = tasker.display_name ?? tasker.email ?? prefix;
+
+      await page.goto("/admin/taskers");
+      await dismissRulesModal(page);
+      await expect(page.getByRole("columnheader", { name: "Tasker" })).toBeVisible();
+
+      const taskerRow = page.getByRole("row", { name: new RegExp(prefix) });
+      await expect(taskerRow).toBeVisible();
+      await taskerRow.getByRole("button", { name: `Remove ${taskerName}` }).click();
+
+      await expect(page.getByRole("row", { name: new RegExp(prefix) })).toHaveCount(0);
+      await expect.poll(async () => getUserById(tasker.id)).toBeNull();
+    } finally {
+      await cleanupByPrefix(prefix);
+    }
   });
 });

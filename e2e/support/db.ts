@@ -112,6 +112,7 @@ export async function cleanupByPrefix(prefix: string) {
   await supabase.from("guilds").delete().like("name", `${prefix}%`);
   await supabase.from("goodies").delete().like("name", `${prefix}%`);
   await supabase.from("users").delete().like("auth0_sub", `e2e|${prefix}%`);
+  await supabase.from("removed_users").delete().like("auth0_sub", `e2e|${prefix}%`);
 }
 
 export async function createE2EUser(prefix: string, role: AppRole = "tasker") {
@@ -132,6 +133,17 @@ export async function createE2EUser(prefix: string, role: AppRole = "tasker") {
   }
 
   return data as E2EUser;
+}
+
+export async function getUserById(userId: string) {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase.from("users").select("id, email, display_name, role").eq("id", userId).maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as E2EUser | null;
 }
 
 export async function seedAcceptedRowsForTasker(taskerEmail: string, prefix: string, count: number) {

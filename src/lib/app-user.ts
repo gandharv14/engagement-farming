@@ -10,6 +10,7 @@ export type AppUserRecord = {
 };
 
 const appUserSelect = "id, auth0_sub, email, display_name, role";
+type SupabaseAdminClient = NonNullable<ReturnType<typeof createSupabaseAdminClient>>;
 
 export function getDefaultAppRole(): AppRole {
   const role = process.env.DEFAULT_APP_ROLE?.toLowerCase();
@@ -23,6 +24,10 @@ export async function ensureAppUser(claims: Claims): Promise<AppUserRecord | nul
 
   if (!supabase) {
     return fallbackUser;
+  }
+
+  if (await isRemovedAppUser(supabase, claims.sub)) {
+    return null;
   }
 
   const { data: existing, error: existingError } = await supabase
@@ -56,6 +61,33 @@ export async function ensureAppUser(claims: Claims): Promise<AppUserRecord | nul
   }
 
   return (data as AppUserRecord | null) ?? ((existing as AppUserRecord | null) || fallbackUser);
+}
+
+async function isRemovedAppUser(supabase: SupabaseAdminClient, auth0Sub: string) {
+  const { data, error } = await supabase
+    .from("removed_users")
+    .select("auth0_sub")
+    .eq("auth0_sub", auth0Sub)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingRemovedUsersTable(error)) {
+      return false;
+    }
+
+    console.error("Unable to check removed app users.", error.message);
+    return false;
+  }
+
+  return Boolean(data);
+}
+
+function isMissingRemovedUsersTable(error: { code?: string; message?: string }) {
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    Boolean(error.message?.includes("removed_users") && error.message.includes("schema cache"))
+  );
 }
 
 function getDisplayName(claims: Claims) {
