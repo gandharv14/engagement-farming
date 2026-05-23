@@ -37,7 +37,7 @@ vi.mock("@/lib/supabase", () => ({
   createSupabaseServerClient: mocks.createSupabaseServerClient,
 }));
 
-import { reviewRow, submitRow, updateSprintConfig } from "./actions";
+import { releaseExpiredReviewReservations, releaseReviewReservation, reserveReviewRow, reviewRow, submitRow, updateSprintConfig } from "./actions";
 
 type TableMocks = Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
@@ -71,9 +71,29 @@ function createSubmitSupabase(options: { submissionsToday?: number; countError?:
   };
 }
 
-function createReviewSupabase(options: { updateError?: Error; upsertError?: Error } = {}) {
-  const rowEq = vi.fn(() => ({ error: options.updateError ?? null }));
-  const update = vi.fn(() => ({ eq: rowEq }));
+function createReviewSupabase(options: { updateError?: Error; upsertError?: Error; updatedRow?: { id: string } | null } = {}) {
+  const mutationResult = {
+    data: options.updatedRow === undefined ? { id: "row-id" } : options.updatedRow,
+    error: options.updateError ?? null,
+  };
+  const rowQuery = {
+    data: mutationResult.data,
+    error: mutationResult.error,
+    eq: vi.fn(),
+    gt: vi.fn(),
+    lte: vi.fn(),
+    not: vi.fn(),
+    or: vi.fn(),
+    select: vi.fn(),
+    maybeSingle: vi.fn(() => Promise.resolve(mutationResult)),
+  };
+  rowQuery.eq.mockReturnValue(rowQuery);
+  rowQuery.gt.mockReturnValue(rowQuery);
+  rowQuery.lte.mockReturnValue(rowQuery);
+  rowQuery.not.mockReturnValue(rowQuery);
+  rowQuery.or.mockReturnValue(rowQuery);
+  rowQuery.select.mockReturnValue(rowQuery);
+  const update = vi.fn(() => rowQuery);
   const reviewUpsert = vi.fn(() => ({ error: options.upsertError ?? null }));
   const tables: TableMocks = {
     rows: { update },
@@ -84,7 +104,7 @@ function createReviewSupabase(options: { updateError?: Error; upsertError?: Erro
     supabase: {
       from: vi.fn((tableName: string) => tables[tableName]),
     },
-    rowEq,
+    rowQuery,
     update,
     reviewUpsert,
   };
@@ -236,31 +256,33 @@ describe("server actions", () => {
 
   describe("reviewRow", () => {
     it("persists review outcomes, notes, and redirects back to the queue", async () => {
-      const { supabase, reviewUpsert, update } = createReviewSupabase();
+      const { supabase, reviewUpsert, rowQuery, update } = createReviewSupabase();
       mocks.createSupabaseServerClient.mockResolvedValue(supabase);
 
       await expect(
         reviewRow(
           "row-id",
           formData({
-            status: "accepted_with_edits",
-            score: "4",
-            notes: "Needs minor formatting fixes.",
+            status: "accepted_clean",
+            notes: "Looks good.",
           }),
         ),
       ).rejects.toThrow("NEXT_REDIRECT:/review/queue");
 
       expect(mocks.requireReviewerGameContext).toHaveBeenCalled();
       expect(update).toHaveBeenCalledWith({
-        status: "accepted_with_edits",
+        status: "accepted_clean",
         reviewer_id: "reviewer-id",
         reviewed_at: expect.any(String),
-        review_score: 4,
+        reserved_by: null,
+        reserved_until: null,
       });
+      expect(rowQuery.eq).toHaveBeenCalledWith("reserved_by", "reviewer-id");
+      expect(rowQuery.gt).toHaveBeenCalledWith("reserved_until", expect.any(String));
       expect(reviewUpsert).toHaveBeenCalledWith({
         row_id: "row-id",
         reviewer_id: "reviewer-id",
-        notes: "Needs minor formatting fixes.",
+        notes: "Looks good.",
       });
       expect(mocks.revalidatePath).toHaveBeenCalledWith("/review/queue");
     });
@@ -269,12 +291,85 @@ describe("server actions", () => {
       const { supabase, update } = createReviewSupabase();
       mocks.createSupabaseServerClient.mockResolvedValue(supabase);
 
-      await expect(reviewRow("row-id", formData({ status: "needs_followup", score: "3" }))).rejects.toThrow(
+      await expect(reviewRow("row-id", formData({ status: "accepted_with_edits" }))).rejects.toThrow(
         "Invalid review status.",
       );
 
       expect(update).not.toHaveBeenCalled();
       expect(mocks.redirect).not.toHaveBeenCalled();
+    });
+
+    it("requires an active reservation owned by the reviewer before completing a row", async () => {
+      const { supabase } = createReviewSupabase({ updatedRow: null });
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await expect(reviewRow("row-id", formData({ status: "rejected" }))).rejects.toThrow(
+        "Review reservation expired or belongs to another reviewer.",
+      );
+
+      expect(mocks.redirect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("review reservations", () => {
+    it("reserves an available row for five minutes and redirects to the detail page", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-22T16:00:00.000Z"));
+      const { supabase, rowQuery, update } = createReviewSupabase();
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await expect(reserveReviewRow("row-id")).rejects.toThrow("NEXT_REDIRECT:/review/row-id");
+
+      expect(update).toHaveBeenCalledWith({ reserved_by: null, reserved_until: null });
+      expect(update).toHaveBeenCalledWith({
+        reserved_by: "reviewer-id",
+        reserved_until: "2026-05-22T16:05:00.000Z",
+        reviewer_id: null,
+        reviewed_at: null,
+      });
+      expect(rowQuery.or).toHaveBeenCalledWith(
+        "reserved_by.is.null,reserved_by.eq.reviewer-id,reserved_until.lte.2026-05-22T16:00:00.000Z",
+      );
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/review/queue");
+    });
+
+    it("blocks reservation when another reviewer owns an active hold", async () => {
+      const { supabase, update } = createReviewSupabase({ updatedRow: null });
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await expect(reserveReviewRow("row-id")).rejects.toThrow("This row is already reserved by another reviewer.");
+
+      expect(update).toHaveBeenCalledTimes(2);
+      expect(mocks.redirect).not.toHaveBeenCalled();
+    });
+
+    it("releases the current reviewer's reservation", async () => {
+      const { supabase, rowQuery, update } = createReviewSupabase();
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await releaseReviewReservation("row-id");
+
+      expect(update).toHaveBeenCalledWith({ reserved_by: null, reserved_until: null });
+      expect(rowQuery.eq).toHaveBeenCalledWith("id", "row-id");
+      expect(rowQuery.eq).toHaveBeenCalledWith("status", "pending_review");
+      expect(rowQuery.eq).toHaveBeenCalledWith("reserved_by", "reviewer-id");
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/review/queue");
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/review/row-id");
+    });
+
+    it("clears expired reservations from the pending queue", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-22T16:00:00.000Z"));
+      const { supabase, rowQuery, update } = createReviewSupabase();
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await releaseExpiredReviewReservations();
+
+      expect(update).toHaveBeenCalledWith({ reserved_by: null, reserved_until: null });
+      expect(rowQuery.eq).toHaveBeenCalledWith("status", "pending_review");
+      expect(rowQuery.lte).toHaveBeenCalledWith("reserved_until", "2026-05-22T16:00:00.000Z");
+      expect(rowQuery.not).toHaveBeenCalledWith("reserved_by", "is", null);
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/review/queue");
     });
   });
 

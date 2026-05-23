@@ -27,15 +27,12 @@ type GoodieRow = {
   tier_label: string;
   name: string;
   description: string | null;
-  image_url: string | null;
   available: boolean;
 };
 
 type InternalGoodieRow = {
   goodie_id: string;
   unit_cost_cents: number;
-  vendor: string | null;
-  notes: string | null;
 };
 
 type FulfillmentRow = {
@@ -58,6 +55,10 @@ function firstRelation<T>(value: Relation<T>) {
 
 function displayName(user?: { display_name: string | null; email: string | null } | null) {
   return user?.display_name ?? user?.email ?? "Tasker";
+}
+
+function formatCostInput(costCents: number) {
+  return String(costCents / 100);
 }
 
 function TierSelect({ defaultValue, id }: { defaultValue?: string; id: string }) {
@@ -98,7 +99,7 @@ export default async function AdminGoodiesPage() {
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-gold">Loot Ops</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Goodies</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Manage the tasker catalog, private cost fields, and fulfillment status for selected milestone rewards.
+            Manage the tasker catalog, unit costs, and fulfillment status for selected milestone rewards.
           </p>
         </div>
 
@@ -121,29 +122,13 @@ export default async function AdminGoodiesPage() {
                 <Input id="new-name" name="name" required placeholder="Sticker pack" />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="new-unit-cost">Unit cost, cents</Label>
-                <Input id="new-unit-cost" name="unitCostCents" type="number" min="0" defaultValue="0" required />
+                <Label htmlFor="new-unit-cost">Unit Cost ($)</Label>
+                <Input id="new-unit-cost" name="unitCost" type="number" min="0" step="0.01" defaultValue="0" required />
               </div>
-              <div className="grid gap-2 lg:col-span-2">
+              <div className="grid gap-2 lg:col-span-3">
                 <Label htmlFor="new-description">Description</Label>
                 <Textarea id="new-description" name="description" placeholder="Shown to taskers" />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="new-image-url">Image URL</Label>
-                <Input id="new-image-url" name="imageUrl" type="url" placeholder="https://..." />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="new-vendor">Vendor</Label>
-                <Input id="new-vendor" name="vendor" placeholder="Internal only" />
-              </div>
-              <div className="grid gap-2 lg:col-span-2">
-                <Label htmlFor="new-internal-notes">Internal notes</Label>
-                <Textarea id="new-internal-notes" name="internalNotes" placeholder="Private admin context" />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input name="available" type="checkbox" defaultChecked />
-                Available in catalog
-              </label>
               <Button type="submit" className="lg:col-span-3">
                 Create goodie
               </Button>
@@ -178,36 +163,21 @@ export default async function AdminGoodiesPage() {
                           <Input id={`name-${goodie.id}`} name="name" defaultValue={goodie.name} required />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor={`unit-cost-${goodie.id}`}>Unit cost, cents</Label>
+                          <Label htmlFor={`unit-cost-${goodie.id}`}>Unit Cost ($)</Label>
                           <Input
                             id={`unit-cost-${goodie.id}`}
-                            name="unitCostCents"
+                            name="unitCost"
                             type="number"
                             min="0"
-                            defaultValue={internal?.unit_cost_cents ?? 0}
+                            step="0.01"
+                            defaultValue={formatCostInput(internal?.unit_cost_cents ?? 0)}
                             required
                           />
                         </div>
-                        <div className="grid gap-2 lg:col-span-2">
+                        <div className="grid gap-2 lg:col-span-3">
                           <Label htmlFor={`description-${goodie.id}`}>Description</Label>
                           <Textarea id={`description-${goodie.id}`} name="description" defaultValue={goodie.description ?? ""} />
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor={`image-url-${goodie.id}`}>Image URL</Label>
-                          <Input id={`image-url-${goodie.id}`} name="imageUrl" type="url" defaultValue={goodie.image_url ?? ""} />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor={`vendor-${goodie.id}`}>Vendor</Label>
-                          <Input id={`vendor-${goodie.id}`} name="vendor" defaultValue={internal?.vendor ?? ""} />
-                        </div>
-                        <div className="grid gap-2 lg:col-span-2">
-                          <Label htmlFor={`internal-notes-${goodie.id}`}>Internal notes</Label>
-                          <Textarea id={`internal-notes-${goodie.id}`} name="internalNotes" defaultValue={internal?.notes ?? ""} />
-                        </div>
-                        <label className="flex items-center gap-2 text-sm">
-                          <input name="available" type="checkbox" defaultChecked={goodie.available} />
-                          Available in catalog
-                        </label>
                       </div>
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">

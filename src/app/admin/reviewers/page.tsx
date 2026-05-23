@@ -14,11 +14,11 @@ export default async function AdminReviewersPage() {
   const [{ data: reviewers }, { data: rows }] = supabase
     ? await Promise.all([
         supabase.from("users").select("id, display_name, email").eq("role", "reviewer"),
-        supabase.from("rows").select("reviewer_id, status, review_score").not("reviewer_id", "is", null),
+        supabase.from("rows").select("reviewer_id, status").not("reviewer_id", "is", null),
       ])
     : [{ data: [] }, { data: [] }];
 
-  const reviewedRows = (rows ?? []) as { reviewer_id: string; status: string; review_score: number | null }[];
+  const reviewedRows = (rows ?? []) as { reviewer_id: string; status: string }[];
 
   return (
     <AppShell role={user.role} name={user.name ?? user.email ?? "Admin"}>
@@ -26,7 +26,7 @@ export default async function AdminReviewersPage() {
         <CardHeader>
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-pink">Review Squad</p>
           <CardTitle>Reviewers</CardTitle>
-          <CardDescription>Throughput and score spread for review operations.</CardDescription>
+          <CardDescription>Throughput and pass rate for review operations.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -34,8 +34,7 @@ export default async function AdminReviewersPage() {
               <TableRow>
                 <TableHead>Reviewer</TableHead>
                 <TableHead>Reviewed rows</TableHead>
-                <TableHead>Clean pass rate</TableHead>
-                <TableHead>Avg score</TableHead>
+                <TableHead>Pass rate</TableHead>
                 <TableHead className="text-right">Role</TableHead>
               </TableRow>
             </TableHeader>
@@ -43,15 +42,12 @@ export default async function AdminReviewersPage() {
               {((reviewers ?? []) as { id: string; display_name: string | null; email: string | null }[]).map((reviewer) => {
                 const reviewerRows = reviewedRows.filter((row) => row.reviewer_id === reviewer.id);
                 const clean = reviewerRows.filter((row) => row.status === "accepted_clean").length;
-                const scores = reviewerRows.map((row) => row.review_score).filter((score): score is number => score !== null);
-                const avgScore = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
 
                 return (
                   <TableRow key={reviewer.id}>
                     <TableCell>{reviewer.display_name ?? reviewer.email ?? "Reviewer"}</TableCell>
                     <TableCell>{reviewerRows.length}</TableCell>
                     <TableCell>{reviewerRows.length ? `${Math.round((clean / reviewerRows.length) * 100)}%` : "0%"}</TableCell>
-                    <TableCell>{avgScore.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <form action={demoteReviewerToTasker.bind(null, reviewer.id)}>
                         <Button type="submit" size="sm" variant="secondary">

@@ -48,7 +48,7 @@ export default async function AdminTaskersPage() {
             <TableBody>
               {((users ?? []) as { id: string; auth0_sub: string; display_name: string | null; email: string | null }[]).map((tasker) => {
                 const taskerRows = rowList.filter((row) => row.tasker_id === tasker.id);
-                const accepted = taskerRows.filter((row) => ["accepted_clean", "accepted_with_edits"].includes(row.status)).length;
+                const accepted = taskerRows.filter((row) => row.status === "accepted_clean").length;
                 const cost = earningList
                   .filter((earning) => earning.user_id === tasker.id)
                   .reduce((sum, earning) => sum + earning.amount_cents, 0);

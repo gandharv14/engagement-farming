@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { Filter, ShieldCheck } from "lucide-react";
 
+import { reserveReviewRow } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
 import { RealtimeRefresh } from "@/components/app/realtime-refresh";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ReviewQueuePage() {
   const context = await requireReviewerGameContext();
-  const rows = await getReviewQueue();
+  const rows = await getReviewQueue(context.reviewer.id);
 
   return (
     <AppShell {...getReviewerShellProps(context)}>
@@ -24,7 +24,7 @@ export default async function ReviewQueuePage() {
         <div className="arena-panel rounded-3xl p-5">
           <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Moderator Console</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Review Queue</h1>
-          <p className="mt-2 text-sm text-muted-foreground">FIFO pending rows. Reviewer notes stay off tasker surfaces.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Reserve a pending row before review. Holds expire after 5 minutes.</p>
         </div>
         <Card>
           <CardHeader>
@@ -72,9 +72,11 @@ export default async function ReviewQueuePage() {
                         <span className="font-mono text-arena-gold">{row.tasker_potential_streak_days} days</span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button asChild size="sm">
-                          <Link href={`/review/${row.id}`}>Open</Link>
-                        </Button>
+                        <form action={reserveReviewRow.bind(null, row.id)}>
+                          <Button type="submit" size="sm">
+                            {row.reserved_by === context.reviewer.id ? "Resume" : "Reserve"}
+                          </Button>
+                        </form>
                       </TableCell>
                     </TableRow>
                   ))

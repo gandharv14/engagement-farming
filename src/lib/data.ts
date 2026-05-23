@@ -1,7 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { MAX_PROBLEMS_PER_TASKER_PER_DAY } from "@/lib/sprint-config";
+import { isReviewReservationActive } from "@/lib/review-reservations";
 
-export const acceptedStatuses = ["accepted_clean", "accepted_with_edits"] as const;
+export const acceptedStatuses = ["accepted_clean"] as const;
 
 export type AppUserRow = {
   id: string;
@@ -84,7 +85,6 @@ export type Goodie = {
   tier_label: string;
   name: string;
   description: string | null;
-  image_url: string | null;
   available: boolean;
 };
 
@@ -109,6 +109,8 @@ export type ReviewQueueRow = {
   tasker_current_streak_days: number;
   tasker_potential_streak_days: number;
   submitted_at: string;
+  reserved_by: string | null;
+  reserved_until: string | null;
   metadata: Record<string, unknown>;
 };
 
@@ -448,10 +450,10 @@ export async function getLeaderboards() {
       display_name: entry.display_name,
       metric: `${entry.accepted_rows} accepted`,
     })),
-    quality: ((quality ?? []) as { rank: number; display_name: string; average_score: number }[]).map((entry) => ({
+    quality: ((quality ?? []) as { rank: number; display_name: string; accepted_rows: number }[]).map((entry) => ({
       rank: entry.rank,
       display_name: entry.display_name,
-      metric: `${entry.average_score}/5 avg`,
+      metric: `${entry.accepted_rows} accepted`,
     })),
     consistency: ((consistency ?? []) as { rank: number; display_name: string; current_streak_days: number }[]).map(
       (entry) => ({
@@ -561,20 +563,43 @@ export async function getEarnings(auth0Sub: string) {
   };
 }
 
-export async function getReviewQueue(): Promise<ReviewQueueRow[]> {
+async function releaseExpiredReservations(supabase: SupabaseServerClient, now = new Date()) {
+  await supabase
+    .from("rows")
+    .update({ reserved_by: null, reserved_until: null })
+    .eq("status", "pending_review")
+    .lte("reserved_until", now.toISOString())
+    .not("reserved_by", "is", null);
+}
+
+type RawReviewQueueRow = {
+  id: string;
+  tasker_id: string;
+  submitted_at: string;
+  reserved_by: string | null;
+  reserved_until: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export async function getReviewQueue(reviewerId?: string): Promise<ReviewQueueRow[]> {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
     return [];
   }
 
+  const now = new Date();
+  await releaseExpiredReservations(supabase, now);
+
   const { data } = await supabase
     .from("rows")
-    .select("id, tasker_id, submitted_at, metadata")
+    .select("id, tasker_id, submitted_at, reserved_by, reserved_until, metadata")
     .eq("status", "pending_review")
     .order("submitted_at", { ascending: true });
 
-  const rows = (data ?? []) as { id: string; tasker_id: string; submitted_at: string; metadata: Record<string, unknown> }[];
+  const rows = ((data ?? []) as RawReviewQueueRow[]).filter(
+    (row) => !isReviewReservationActive(row.reserved_until, now) || row.reserved_by === reviewerId,
+  );
   const contexts = await getTaskerStreakContexts(
     supabase,
     rows.map((row) => row.tasker_id),
@@ -592,22 +617,30 @@ export async function getReviewQueue(): Promise<ReviewQueueRow[]> {
   });
 }
 
-export async function getReviewDetail(rowId: string): Promise<ReviewDetail | null> {
+export async function getReviewDetail(rowId: string, reviewerId: string): Promise<ReviewDetail | null> {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
     return null;
   }
 
+  const now = new Date();
+  await releaseExpiredReservations(supabase, now);
+
   const { data } = await supabase
     .from("rows")
-    .select("id, tasker_id, submitted_at, status, metadata")
+    .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, metadata")
     .eq("id", rowId)
     .maybeSingle();
 
-  const row = data as ({ id: string; tasker_id: string; submitted_at: string; status: string; metadata: Record<string, unknown> } | null);
+  const row = data as (RawReviewQueueRow & { status: string }) | null;
 
-  if (!row) {
+  if (
+    !row ||
+    row.status !== "pending_review" ||
+    row.reserved_by !== reviewerId ||
+    !isReviewReservationActive(row.reserved_until, now)
+  ) {
     return null;
   }
 

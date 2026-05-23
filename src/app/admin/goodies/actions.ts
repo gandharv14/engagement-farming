@@ -17,6 +17,10 @@ function formNumber(formData: FormData, key: string) {
   return Number.isFinite(value) ? value : 0;
 }
 
+function formDollarsToCents(formData: FormData, key: string) {
+  return Math.max(0, Math.round(formNumber(formData, key) * 100));
+}
+
 function requireTierLabel(value: string) {
   if (!tierLabels.includes(value as (typeof tierLabels)[number])) {
     throw new Error("Choose a valid tier.");
@@ -53,23 +57,23 @@ function goodiePayload(formData: FormData) {
     tier_label: requireTierLabel(formString(formData, "tierLabel")),
     name,
     description: formString(formData, "description") || null,
-    image_url: formString(formData, "imageUrl") || null,
-    available: formData.get("available") === "on",
   };
 }
 
 function internalPayload(goodieId: string, formData: FormData) {
   return {
     goodie_id: goodieId,
-    unit_cost_cents: Math.max(0, Math.round(formNumber(formData, "unitCostCents"))),
-    vendor: formString(formData, "vendor") || null,
-    notes: formString(formData, "internalNotes") || null,
+    unit_cost_cents: formDollarsToCents(formData, "unitCost"),
   };
 }
 
 export async function createGoodie(formData: FormData) {
   const supabase = await getAdminSupabase();
-  const { data, error } = await supabase.from("goodies").insert(goodiePayload(formData)).select("id").single();
+  const { data, error } = await supabase
+    .from("goodies")
+    .insert({ ...goodiePayload(formData), available: true })
+    .select("id")
+    .single();
 
   if (error) {
     throw new Error(error.message);

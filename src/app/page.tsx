@@ -20,8 +20,7 @@ export const dynamic = "force-dynamic";
 
 const taskerRowStatusLabels: Record<string, string> = {
   pending_review: "Pending review",
-  accepted_clean: "Accepted clean",
-  accepted_with_edits: "Accepted with edits",
+  accepted_clean: "Passed",
   rejected: "Rejected",
 };
 
@@ -32,10 +31,6 @@ function formatTaskerRowStatus(status: string) {
 function taskerRowStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   if (status === "rejected") {
     return "destructive";
-  }
-
-  if (status === "accepted_with_edits") {
-    return "secondary";
   }
 
   return status === "accepted_clean" ? "default" : "outline";

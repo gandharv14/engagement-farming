@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireReviewerGameContext, requireTaskerGameContext } from "@/lib/admin-game-mode";
 import { requireRole } from "@/lib/auth";
+import { getReviewReservationExpiry } from "@/lib/review-reservations";
 import {
   MAX_PROBLEMS_PER_TASKER_PER_DAY,
   formatDateOnly,
@@ -152,42 +153,139 @@ export async function reviewRow(rowId: string, formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const reviewer = context.reviewer;
   const status = formString(formData, "status");
-  const score = Number(formString(formData, "score"));
 
   if (!supabase || !reviewer) {
     throw new Error("Supabase is not configured.");
   }
 
-  if (!["accepted_clean", "accepted_with_edits", "rejected"].includes(status)) {
+  if (!["accepted_clean", "rejected"].includes(status)) {
     throw new Error("Invalid review status.");
   }
 
-  const { error: rowError } = await supabase
+  const { data: reviewedRow, error: rowError } = await supabase
     .from("rows")
     .update({
       status,
       reviewer_id: reviewer.id,
       reviewed_at: new Date().toISOString(),
-      review_score: Number.isFinite(score) ? score : null,
+      reserved_by: null,
+      reserved_until: null,
     })
-    .eq("id", rowId);
+    .eq("id", rowId)
+    .eq("status", "pending_review")
+    .eq("reserved_by", reviewer.id)
+    .gt("reserved_until", new Date().toISOString())
+    .select("id")
+    .maybeSingle();
 
   if (rowError) {
     throw new Error(rowError.message);
   }
 
+  if (!reviewedRow) {
+    throw new Error("Review reservation expired or belongs to another reviewer.");
+  }
+
   const notes = formString(formData, "notes");
 
   if (notes) {
-    await supabase.from("row_reviews").upsert({
+    const { error: reviewError } = await supabase.from("row_reviews").upsert({
       row_id: rowId,
       reviewer_id: reviewer.id,
       notes,
     });
+
+    if (reviewError) {
+      throw new Error(reviewError.message);
+    }
   }
 
   revalidatePath("/review/queue");
   redirect("/review/queue");
+}
+
+export async function releaseExpiredReviewReservations() {
+  await requireReviewerGameContext();
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { error } = await supabase
+    .from("rows")
+    .update({ reserved_by: null, reserved_until: null })
+    .eq("status", "pending_review")
+    .lte("reserved_until", new Date().toISOString())
+    .not("reserved_by", "is", null);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/review/queue");
+}
+
+export async function releaseReviewReservation(rowId: string) {
+  const context = await requireReviewerGameContext();
+  const supabase = await createSupabaseServerClient();
+  const reviewer = context.reviewer;
+
+  if (!supabase || !reviewer) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { error } = await supabase
+    .from("rows")
+    .update({ reserved_by: null, reserved_until: null })
+    .eq("id", rowId)
+    .eq("status", "pending_review")
+    .eq("reserved_by", reviewer.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/review/queue");
+  revalidatePath(`/review/${rowId}`);
+}
+
+export async function reserveReviewRow(rowId: string) {
+  const context = await requireReviewerGameContext();
+  const supabase = await createSupabaseServerClient();
+  const reviewer = context.reviewer;
+  const now = new Date();
+
+  if (!supabase || !reviewer) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  await releaseExpiredReviewReservations();
+
+  const { data: reservedRow, error } = await supabase
+    .from("rows")
+    .update({
+      reserved_by: reviewer.id,
+      reserved_until: getReviewReservationExpiry(now).toISOString(),
+      reviewer_id: null,
+      reviewed_at: null,
+    })
+    .eq("id", rowId)
+    .eq("status", "pending_review")
+    .or(`reserved_by.is.null,reserved_by.eq.${reviewer.id},reserved_until.lte.${now.toISOString()}`)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!reservedRow) {
+    throw new Error("This row is already reserved by another reviewer.");
+  }
+
+  revalidatePath("/review/queue");
+  redirect(`/review/${rowId}`);
 }
 
 export async function selectGoodie(achievementId: string, goodieId: string) {

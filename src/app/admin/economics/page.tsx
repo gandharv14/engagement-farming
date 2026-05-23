@@ -20,7 +20,7 @@ export default async function AdminEconomicsPage() {
   const [{ data: economics }, { data: internalGoodies }] = supabase
     ? await Promise.all([
         supabase.from("program_economics").select("*").eq("id", 1).maybeSingle(),
-        supabase.from("goodies_internal").select("unit_cost_cents, vendor, notes, goodies(name, tier_label)"),
+        supabase.from("goodies_internal").select("unit_cost_cents, goodies(name, tier_label)"),
       ])
     : [{ data: null }, { data: [] }];
   const econ = (economics ?? {}) as { budget_cents?: number; revenue_cents?: number; notes?: string };
@@ -79,17 +79,15 @@ export default async function AdminEconomicsPage() {
                 <TableRow>
                   <TableHead>Item</TableHead>
                   <TableHead>Tier</TableHead>
-                  <TableHead>Vendor</TableHead>
                   <TableHead className="text-right">Unit cost</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {((internalGoodies ?? []) as { unit_cost_cents: number; vendor: string | null; goodies?: { name?: string; tier_label?: string } }[]).map(
+                {((internalGoodies ?? []) as { unit_cost_cents: number; goodies?: { name?: string; tier_label?: string } }[]).map(
                   (item) => (
-                    <TableRow key={`${item.goodies?.name}-${item.vendor}`}>
+                    <TableRow key={`${item.goodies?.tier_label}-${item.goodies?.name}`}>
                       <TableCell>{item.goodies?.name ?? "Goodie"}</TableCell>
                       <TableCell>{item.goodies?.tier_label ?? "Tier"}</TableCell>
-                      <TableCell>{item.vendor ?? "Not set"}</TableCell>
                       <TableCell className="text-right">{formatCurrency(item.unit_cost_cents)}</TableCell>
                     </TableRow>
                   ),

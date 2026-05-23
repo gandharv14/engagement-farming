@@ -156,7 +156,7 @@ export async function seedAcceptedRowsForTasker(taskerEmail: string, prefix: str
   const rowIds = ((data ?? []) as { id: string }[]).map((row) => row.id);
   const { error: updateError } = await supabase
     .from("rows")
-    .update({ status: "accepted_clean", reviewed_at: new Date().toISOString(), review_score: 5 })
+    .update({ status: "accepted_clean", reviewed_at: new Date().toISOString() })
     .in("id", rowIds);
 
   if (updateError) {
@@ -198,12 +198,31 @@ export async function acceptRow(rowId: string, reviewedAt = new Date().toISOStri
   const supabase = createE2ESupabaseClient();
   const { error } = await supabase
     .from("rows")
-    .update({ status: "accepted_clean", reviewed_at: reviewedAt, review_score: 5 })
+    .update({ status: "accepted_clean", reviewed_at: reviewedAt })
     .eq("id", rowId);
 
   if (error) {
     throw new Error(error.message);
   }
+}
+
+export async function reserveRowForUserId(rowId: string, reviewerId: string, reservedUntil: string) {
+  const supabase = createE2ESupabaseClient();
+  const { error } = await supabase
+    .from("rows")
+    .update({ reserved_by: reviewerId, reserved_until: reservedUntil })
+    .eq("id", rowId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function reserveRowForReviewer(rowId: string, reviewerEmail: string, reservedUntil: string) {
+  const reviewer = await getUserByEmail(reviewerEmail);
+  await reserveRowForUserId(rowId, reviewer.id, reservedUntil);
+
+  return reviewer;
 }
 
 export async function getStreakForUser(userId: string) {
@@ -264,13 +283,22 @@ export async function getRowReview(rowId: string) {
 
 export async function getRowStatus(rowId: string) {
   const supabase = createE2ESupabaseClient();
-  const { data, error } = await supabase.from("rows").select("status, review_score, reviewed_at").eq("id", rowId).maybeSingle();
+  const { data, error } = await supabase
+    .from("rows")
+    .select("status, reviewed_at, reserved_by, reserved_until")
+    .eq("id", rowId)
+    .maybeSingle();
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return data as { status: string; review_score: number | null; reviewed_at: string | null } | null;
+  return data as {
+    status: string;
+    reviewed_at: string | null;
+    reserved_by: string | null;
+    reserved_until: string | null;
+  } | null;
 }
 
 export async function seedPayoutEarningForUser(userEmail: string, referenceId: string, amountCents: number) {
@@ -325,8 +353,6 @@ export async function createGoodieForE2E(prefix: string, tierLabel = "Tier 1") {
   const { error: internalError } = await supabase.from("goodies_internal").insert({
     goodie_id: goodie.id,
     unit_cost_cents: 1234,
-    vendor: "E2E vendor",
-    notes: "Created by Playwright",
   });
 
   if (internalError) {

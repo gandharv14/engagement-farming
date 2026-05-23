@@ -4,18 +4,18 @@ import { reviewRow } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getReviewerShellProps, requireReviewerGameContext } from "@/lib/admin-game-mode";
 import { getReviewDetail } from "@/lib/data";
+import { ReservationTimer } from "./reservation-timer";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReviewDetailPage({ params }: { params: Promise<{ rowId: string }> }) {
   const context = await requireReviewerGameContext();
   const { rowId } = await params;
-  const row = await getReviewDetail(rowId);
+  const row = await getReviewDetail(rowId, context.reviewer.id);
 
   if (!row) {
     notFound();
@@ -30,10 +30,11 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
     <AppShell {...getReviewerShellProps(context)}>
       <div className="space-y-6">
         <div className="arena-panel rounded-3xl p-5">
-          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Score Check</p>
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Reserved Review</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Review Row</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Score the row. Bonus logic runs in Postgres on status change.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Pass or fail this row before the reservation expires.</p>
         </div>
+        <ReservationTimer rowId={row.id} reservedUntil={row.reserved_until!} />
         <Card>
           <CardHeader>
             <CardTitle>Submission Metadata</CardTitle>
@@ -80,28 +81,21 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Scoring</CardTitle>
+            <CardTitle>Decision</CardTitle>
             <CardDescription>Notes are reviewer/admin only. Do not include economic or strategic commentary.</CardDescription>
           </CardHeader>
           <CardContent>
             <form action={reviewRow.bind(null, row.id)} className="space-y-4">
-              <div className="grid gap-2 md:max-w-xs">
-                <Label htmlFor="score">Reviewer score</Label>
-                <Input id="score" name="score" type="number" min="1" max="5" defaultValue="5" />
-              </div>
               <div className="grid gap-2">
                 <Label htmlFor="notes">Optional notes</Label>
                 <Textarea id="notes" name="notes" placeholder="Review notes for reviewers/admins only" />
               </div>
-              <div className="grid gap-2 md:grid-cols-3">
+              <div className="grid gap-2 md:grid-cols-2">
                 <Button type="submit" name="status" value="accepted_clean">
-                  Clean Pass
-                </Button>
-                <Button type="submit" name="status" value="accepted_with_edits" variant="secondary">
-                  Accept with Edits
+                  Pass
                 </Button>
                 <Button type="submit" name="status" value="rejected" variant="destructive">
-                  Reject
+                  Fail
                 </Button>
               </div>
             </form>

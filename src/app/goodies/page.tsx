@@ -1,6 +1,3 @@
-import Image from "next/image";
-import { Gift } from "lucide-react";
-
 import { selectGoodie } from "@/app/actions";
 import { AppShell } from "@/components/app/app-shell";
 import { RealtimeRefresh } from "@/components/app/realtime-refresh";
@@ -49,13 +46,6 @@ export default async function GoodiesPage() {
                     return (
                       <Card key={goodie.id} className={!unlocked ? "opacity-60 grayscale" : undefined}>
                         <CardHeader>
-                          <div className="mb-3 flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-arena-cyan/15 bg-arena-cyan/5">
-                            {goodie.image_url ? (
-                              <Image src={goodie.image_url} alt="" width={320} height={180} className="h-full w-full object-cover" />
-                            ) : (
-                              <Gift className="h-10 w-10 text-arena-gold" />
-                            )}
-                          </div>
                           <CardTitle>{goodie.name}</CardTitle>
                           <CardDescription>{goodie.description}</CardDescription>
                         </CardHeader>

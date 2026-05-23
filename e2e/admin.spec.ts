@@ -74,9 +74,8 @@ test.describe("admin Goodies", () => {
 
     await page.locator("#new-tier").selectOption("Tier 1");
     await page.locator("#new-name").fill(goodieName);
-    await page.locator("#new-unit-cost").fill("2500");
+    await page.locator("#new-unit-cost").fill("25");
     await page.locator("#new-description").fill("Created from Playwright");
-    await page.locator("#new-vendor").fill("E2E vendor");
     await page.getByRole("button", { name: "Create goodie" }).click();
     const goodieForm = page.locator("form").filter({ has: page.getByRole("button", { name: `Save ${goodieName}` }) });
     const goodieNameInput = goodieForm.locator('input[name="name"]');

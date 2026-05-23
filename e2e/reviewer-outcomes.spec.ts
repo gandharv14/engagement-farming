@@ -12,6 +12,7 @@ import {
   getRowStatus,
   getStreakForUser,
   hasSupabaseAdminEnv,
+  reserveRowForUserId,
   seedPendingRowForTasker,
   seedPendingRowForUserId,
 } from "./support/db";
@@ -23,26 +24,33 @@ test.describe("reviewer outcomes", () => {
   test.skip(!getE2EEmail("tasker"), "Missing E2E_TASKER_EMAIL.");
   test.use({ storageState: storageStatePath("reviewer") });
 
-  test("accepts a row with edits and persists reviewer notes", async ({ page }, testInfo) => {
-    const prefix = `e2e-edits-${testInfo.workerIndex}-${Date.now()}`;
+  test("passes a reserved row and persists reviewer notes", async ({ page }, testInfo) => {
+    const prefix = `e2e-pass-${testInfo.workerIndex}-${Date.now()}`;
     await cleanupByPrefix(prefix);
     const rowId = await seedPendingRowForTasker(getE2EEmail("tasker")!, prefix);
 
-    await page.goto(`/review/${rowId}`);
+    await page.goto("/review/queue");
     await dismissRulesModal(page);
+    const queuedRow = page.getByRole("row", { name: new RegExp(`${prefix}-pending`) });
+    await expect(queuedRow).toBeVisible();
+    await queuedRow.getByRole("button", { name: "Reserve" }).click();
     await expect(page.getByRole("heading", { name: "Review Row" })).toBeVisible();
     await expect(page.getByText("Potential streak if accepted")).toBeVisible();
-    await page.getByLabel("Reviewer score").fill("4");
-    await page.getByLabel("Optional notes").fill("Needs minor formatting fixes.");
-    await page.getByRole("button", { name: "Accept with Edits" }).click();
+    await expect(page.getByText("Reservation expires in")).toBeVisible();
+    await expect(page.getByLabel("Reviewer score")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Accept with Edits" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Fail" })).toBeVisible();
+    await page.getByLabel("Optional notes").fill("Looks good from Playwright.");
+    await page.getByRole("button", { name: "Pass" }).click();
     await expect(page).toHaveURL(/\/review\/queue/);
 
     await expect.poll(() => getRowStatus(rowId)).toMatchObject({
-      status: "accepted_with_edits",
-      review_score: 4,
+      status: "accepted_clean",
+      reserved_by: null,
+      reserved_until: null,
     });
     await expect.poll(() => getRowReview(rowId)).toMatchObject({
-      notes: "Needs minor formatting fixes.",
+      notes: "Looks good from Playwright.",
     });
 
     await cleanupByPrefix(prefix);
@@ -53,20 +61,49 @@ test.describe("reviewer outcomes", () => {
     await cleanupByPrefix(prefix);
     const rowId = await seedPendingRowForTasker(getE2EEmail("tasker")!, prefix);
 
-    await page.goto(`/review/${rowId}`);
+    await page.goto("/review/queue");
     await dismissRulesModal(page);
-    await page.getByLabel("Reviewer score").fill("1");
+    const queuedRow = page.getByRole("row", { name: new RegExp(`${prefix}-pending`) });
+    await expect(queuedRow).toBeVisible();
+    await queuedRow.getByRole("button", { name: "Reserve" }).click();
+    await expect(page.getByLabel("Reviewer score")).toHaveCount(0);
     await page.getByLabel("Optional notes").fill("Rejecting from Playwright.");
-    await page.getByRole("button", { name: "Reject" }).click();
+    await page.getByRole("button", { name: "Fail" }).click();
     await expect(page).toHaveURL(/\/review\/queue/);
 
     await expect.poll(() => getRowStatus(rowId)).toMatchObject({
       status: "rejected",
-      review_score: 1,
+      reserved_by: null,
+      reserved_until: null,
     });
-    await expect(page.locator(`a[href="/review/${rowId}"]`)).toHaveCount(0);
+    await expect(page.getByText(`${prefix}-pending`)).toHaveCount(0);
 
     await cleanupByPrefix(prefix);
+  });
+
+  test("returns an expired reservation to the queue", async ({ page }, testInfo) => {
+    const prefix = `e2e-expired-${testInfo.workerIndex}-${Date.now()}`;
+    await cleanupByPrefix(prefix);
+
+    try {
+      const temporaryReviewer = await createE2EUser(prefix, "reviewer");
+      const rowId = await seedPendingRowForTasker(getE2EEmail("tasker")!, prefix);
+      await reserveRowForUserId(rowId, temporaryReviewer.id, new Date(Date.now() - 60_000).toISOString());
+
+      await page.goto("/review/queue");
+      await dismissRulesModal(page);
+
+      const queuedRow = page.getByRole("row", { name: new RegExp(`${prefix}-pending`) });
+      await expect(queuedRow).toBeVisible();
+      await expect(queuedRow.getByRole("button", { name: "Reserve" })).toBeVisible();
+
+      await expect.poll(() => getRowStatus(rowId)).toMatchObject({
+        reserved_by: null,
+        reserved_until: null,
+      });
+    } finally {
+      await cleanupByPrefix(prefix);
+    }
   });
 
   test("shows not found for an unknown row", async ({ page }) => {

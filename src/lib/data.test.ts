@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase", () => ({
   createSupabaseServerClient: mocks.createSupabaseServerClient,
 }));
 
-import { formatCurrency, formatSource, getAdminDashboard, getReviewQueue, getTaskerDashboard } from "./data";
+import { formatCurrency, formatSource, getAdminDashboard, getReviewDetail, getReviewQueue, getTaskerDashboard } from "./data";
 
 type QueryOperation = {
   name: string;
@@ -45,16 +45,32 @@ class MockQuery {
     return this.record("select", args);
   }
 
+  update(...args: unknown[]) {
+    return this.record("update", args);
+  }
+
   eq(...args: unknown[]) {
     return this.record("eq", args);
+  }
+
+  gt(...args: unknown[]) {
+    return this.record("gt", args);
   }
 
   gte(...args: unknown[]) {
     return this.record("gte", args);
   }
 
+  lte(...args: unknown[]) {
+    return this.record("lte", args);
+  }
+
   lt(...args: unknown[]) {
     return this.record("lt", args);
+  }
+
+  not(...args: unknown[]) {
+    return this.record("not", args);
   }
 
   order(...args: unknown[]) {
@@ -241,7 +257,7 @@ describe("data helpers", () => {
 
     const dashboard = await getTaskerDashboard("auth0|tasker");
 
-    expect(dashboard.acceptedRows).toBe(2);
+    expect(dashboard.acceptedRows).toBe(1);
     expect(dashboard.pendingRows).toBe(1);
     expect(dashboard.currentStreak).toBe(3);
     expect(dashboard.potentialStreak).toBe(5);
@@ -263,10 +279,10 @@ describe("data helpers", () => {
     ]);
     expect(dashboard.milestoneRoadmap).toEqual([
       { threshold: 1, tierLabel: "Tier 1", progress: 100, remainingRows: 0, status: "unlocked" },
-      { threshold: 3, tierLabel: "Tier 2", progress: 67, remainingRows: 1, status: "current" },
-      { threshold: 5, tierLabel: "Tier 3", progress: 40, remainingRows: 3, status: "locked" },
+      { threshold: 3, tierLabel: "Tier 2", progress: 33, remainingRows: 2, status: "current" },
+      { threshold: 5, tierLabel: "Tier 3", progress: 20, remainingRows: 4, status: "locked" },
     ]);
-    expect(dashboard.nextMilestone).toEqual({ threshold: 3, tierLabel: "Tier 2", progress: 67 });
+    expect(dashboard.nextMilestone).toEqual({ threshold: 3, tierLabel: "Tier 2", progress: 33 });
   });
 
   it("hydrates review queue rows with tasker labels and potential streaks", async () => {
@@ -289,12 +305,16 @@ describe("data helpers", () => {
               id: "row-one",
               tasker_id: "tasker-one",
               submitted_at: "2026-05-22T10:00:00.000Z",
+              reserved_by: null,
+              reserved_until: null,
               metadata: { problem_id: "problem-one" },
             },
             {
               id: "row-two",
               tasker_id: "tasker-two",
               submitted_at: "2026-05-22T11:00:00.000Z",
+              reserved_by: null,
+              reserved_until: null,
               metadata: { problem_id: "problem-two" },
             },
           ],
@@ -318,6 +338,8 @@ describe("data helpers", () => {
         id: "row-one",
         tasker_id: "tasker-one",
         submitted_at: "2026-05-22T10:00:00.000Z",
+        reserved_by: null,
+        reserved_until: null,
         metadata: { problem_id: "problem-one" },
         tasker_display_name: "Tara Tasker",
         tasker_current_streak_days: 3,
@@ -327,12 +349,116 @@ describe("data helpers", () => {
         id: "row-two",
         tasker_id: "tasker-two",
         submitted_at: "2026-05-22T11:00:00.000Z",
+        reserved_by: null,
+        reserved_until: null,
         metadata: { problem_id: "problem-two" },
         tasker_display_name: "fallback@example.com",
         tasker_current_streak_days: 0,
         tasker_potential_streak_days: 1,
       },
     ]);
+  });
+
+  it("keeps actively reserved rows out of other reviewers' queues while preserving owned and expired holds", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-22T16:00:00.000Z"));
+    const supabase = createSupabaseMock({
+      rpc: () => ({
+        data: { current_streak_days: 1, longest_streak_days: 1 },
+        error: null,
+      }),
+      tables: {
+        rows: {
+          data: [
+            {
+              id: "available",
+              tasker_id: "tasker-one",
+              submitted_at: "2026-05-22T10:00:00.000Z",
+              reserved_by: null,
+              reserved_until: null,
+              metadata: { problem_id: "available" },
+            },
+            {
+              id: "owned",
+              tasker_id: "tasker-one",
+              submitted_at: "2026-05-22T11:00:00.000Z",
+              reserved_by: "reviewer-one",
+              reserved_until: "2026-05-22T16:04:00.000Z",
+              metadata: { problem_id: "owned" },
+            },
+            {
+              id: "other-active",
+              tasker_id: "tasker-one",
+              submitted_at: "2026-05-22T12:00:00.000Z",
+              reserved_by: "reviewer-two",
+              reserved_until: "2026-05-22T16:04:00.000Z",
+              metadata: { problem_id: "other-active" },
+            },
+            {
+              id: "expired",
+              tasker_id: "tasker-one",
+              submitted_at: "2026-05-22T13:00:00.000Z",
+              reserved_by: "reviewer-two",
+              reserved_until: "2026-05-22T15:59:00.000Z",
+              metadata: { problem_id: "expired" },
+            },
+          ],
+          error: null,
+        },
+        users: {
+          data: [{ id: "tasker-one", display_name: "Tara Tasker", email: "tara@example.com" }],
+          error: null,
+        },
+      },
+    });
+    mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+    const queue = await getReviewQueue("reviewer-one");
+
+    expect(queue.map((row) => row.id)).toEqual(["available", "owned", "expired"]);
+  });
+
+  it("only returns review details for an active reservation owned by the reviewer", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-22T16:00:00.000Z"));
+    const supabase = createSupabaseMock({
+      rpc: () => ({
+        data: { current_streak_days: 2, longest_streak_days: 2 },
+        error: null,
+      }),
+      tables: {
+        rows: ({ operations }) => {
+          if (operations.some((operation) => operation.name === "update")) {
+            return { data: null, error: null };
+          }
+
+          return {
+            data: {
+              id: "reserved-row",
+              tasker_id: "tasker-one",
+              submitted_at: "2026-05-22T10:00:00.000Z",
+              status: "pending_review",
+              reserved_by: "reviewer-one",
+              reserved_until: "2026-05-22T16:04:00.000Z",
+              metadata: { problem_id: "reserved-row" },
+            },
+            error: null,
+          };
+        },
+        users: {
+          data: [{ id: "tasker-one", display_name: "Tara Tasker", email: "tara@example.com" }],
+          error: null,
+        },
+      },
+    });
+    mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+    await expect(getReviewDetail("reserved-row", "reviewer-one")).resolves.toMatchObject({
+      id: "reserved-row",
+      reserved_by: "reviewer-one",
+      tasker_display_name: "Tara Tasker",
+    });
+    await expect(getReviewDetail("reserved-row", "reviewer-two")).resolves.toBeNull();
   });
 
   it("summarizes admin accepted rows, spend, margin, and burndown targets", async () => {
@@ -369,7 +495,7 @@ describe("data helpers", () => {
     const dashboard = await getAdminDashboard();
 
     expect(dashboard).toEqual({
-      acceptedRows: 2,
+      acceptedRows: 1,
       targetRows: 50,
       budgetCents: 10_000,
       revenueCents: 12_000,
@@ -381,7 +507,7 @@ describe("data helpers", () => {
       ],
       burndown: [
         { day: "Start", accepted: 0, target: 0 },
-        { day: "Today", accepted: 2, target: 50 },
+        { day: "Today", accepted: 1, target: 50 },
       ],
     });
   });
