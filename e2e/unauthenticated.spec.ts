@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { dismissRulesModal } from "./support/rules";
+
 const protectedRoutes = ["/", "/admin", "/review/queue", "/goodies", "/api/supabase-token"] as const;
 
 for (const route of protectedRoutes) {
@@ -14,6 +16,7 @@ test("preserves a protected destination through the SSO login link", async ({ pa
   await page.goto("/admin/reviewers");
 
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fadmin%2Freviewers/);
+  await dismissRulesModal(page);
   await expect(page.getByRole("link", { name: "Continue with Labelbox SSO" })).toHaveAttribute(
     "href",
     "/api/auth/login?returnTo=%2Fadmin%2Freviewers",

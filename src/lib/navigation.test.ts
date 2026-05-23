@@ -8,6 +8,7 @@ import { getShellNavigationLinks, intentionalNonSidebarRoutes, sidebarNavigation
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const appDir = path.join(repoRoot, "src", "app");
+const adminRoutes = sidebarNavigationLinksByRole.admin.map((link) => link.href);
 
 function collectPageFiles(dir: string): string[] {
   if (!existsSync(dir)) {
@@ -52,22 +53,22 @@ describe("shell navigation", () => {
   it("shows the reviewers tab in the primary admin navigation", () => {
     const links = getShellNavigationLinks("admin");
 
-    expect(links.map((link) => link.href)).toEqual([
-      "/admin",
-      "/admin/game-mode",
-      "/admin/reviewers",
-      "/admin/taskers",
-      "/admin/config",
-      "/admin/economics",
-      "/admin/goodies",
-      "/admin/guilds",
-      "/admin/payouts",
-    ]);
+    expect(links.map((link) => link.href)).toEqual(adminRoutes);
   });
 
-  it("keeps admin navigation available while an admin is in reviewer mode", () => {
+  it("hides admin navigation while an admin is in reviewer mode", () => {
     const links = getShellNavigationLinks("admin", "reviewer");
+    const hrefs = links.map((link) => link.href);
 
-    expect(links.map((link) => link.href)).toEqual(expect.arrayContaining(["/review/queue", "/admin/reviewers"]));
+    expect(hrefs).toEqual(sidebarNavigationLinksByRole.reviewer.map((link) => link.href));
+    expect(hrefs.some((href) => href.startsWith("/admin"))).toBe(false);
+  });
+
+  it("hides admin navigation while an admin is in tasker mode", () => {
+    const links = getShellNavigationLinks("admin", "tasker");
+    const hrefs = links.map((link) => link.href);
+
+    expect(hrefs).toEqual(sidebarNavigationLinksByRole.tasker.map((link) => link.href));
+    expect(hrefs.some((href) => href.startsWith("/admin"))).toBe(false);
   });
 });

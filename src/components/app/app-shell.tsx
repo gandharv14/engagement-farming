@@ -56,7 +56,7 @@ export function AppShell({
           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
             <GameRulesDialog autoOpen={role !== "admin"} />
             <Badge variant="secondary" className="border-arena-purple/40 bg-arena-purple/15 text-arena-cyan capitalize">
-              {role}
+              {activeNavigationRole}
             </Badge>
             {gameMode ? <Badge className="bg-arena-gold text-background">Game mode</Badge> : null}
             <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{name}</span>
@@ -74,15 +74,12 @@ export function AppShell({
         <div className="border-b border-arena-gold/25 bg-arena-gold/10">
           <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
-              <span className="font-mono text-xs font-medium uppercase tracking-[0.22em] text-arena-gold">Admin mode:</span>{" "}
+              <span className="font-mono text-xs font-medium uppercase tracking-[0.22em] text-arena-gold">Game mode:</span>{" "}
               <span className="text-muted-foreground">
                 {gameMode.label} as {gameMode.targetName}
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" variant="secondary">
-                <Link href="/admin">Admin Ops</Link>
-              </Button>
               <form action={exitAdminGameMode}>
                 <Button size="sm" variant="outline" type="submit">
                   Exit Game Mode

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { hasStorageState, storageStatePath } from "./support/auth";
 import {
@@ -10,6 +10,19 @@ import {
 } from "./support/db";
 import { dismissRulesModal } from "./support/rules";
 
+const adminOnlyNavLabels = ["Operations", "Admin Mode", "Reviewers", "Taskers", "Config", "Economics", "Goodies", "Guilds", "Payouts"];
+
+async function expectNoAdminSidebarLinks(page: Page, options: { skipLabels?: string[] } = {}) {
+  await expect(page.locator('aside nav a[href^="/admin"]')).toHaveCount(0);
+
+  const skipLabels = new Set(options.skipLabels ?? []);
+  for (const label of adminOnlyNavLabels) {
+    if (!skipLabels.has(label)) {
+      await expect(page.getByRole("link", { name: label, exact: true })).toHaveCount(0);
+    }
+  }
+}
+
 test.describe("tasker RBAC", () => {
   test.skip(!hasStorageState("tasker"), "Missing e2e/.auth/tasker.json. See docs/e2e-testing.md.");
   test.use({ storageState: storageStatePath("tasker") });
@@ -19,16 +32,19 @@ test.describe("tasker RBAC", () => {
     await dismissRulesModal(page);
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { name: "Keep your streak online." })).toBeVisible();
+    await expectNoAdminSidebarLinks(page, { skipLabels: ["Goodies"] });
 
     await page.goto("/review/queue");
     await dismissRulesModal(page);
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { name: "Keep your streak online." })).toBeVisible();
+    await expectNoAdminSidebarLinks(page, { skipLabels: ["Goodies"] });
 
     await page.goto("/admin/payouts/export");
     await dismissRulesModal(page);
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { name: "Keep your streak online." })).toBeVisible();
+    await expectNoAdminSidebarLinks(page, { skipLabels: ["Goodies"] });
   });
 });
 
@@ -41,11 +57,13 @@ test.describe("reviewer RBAC", () => {
     await dismissRulesModal(page);
     await expect(page).toHaveURL(/\/review\/queue/);
     await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
+    await expectNoAdminSidebarLinks(page);
 
     await page.goto("/");
     await dismissRulesModal(page);
     await expect(page).toHaveURL(/\/review\/queue/);
     await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
+    await expectNoAdminSidebarLinks(page);
   });
 });
 
@@ -56,13 +74,14 @@ test.describe("admin game mode", () => {
   test("lets admins enter and exit tasker game mode", async ({ page }) => {
     await page.goto("/admin/game-mode");
     await dismissRulesModal(page);
-    await expect(page.getByRole("heading", { name: "Admin Game Mode" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Admin Mode" })).toBeVisible();
 
     await page.getByRole("button", { name: "Enter My Game Profile" }).click();
     await dismissRulesModal(page);
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByText("Game mode")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Keep your streak online." })).toBeVisible();
+    await expectNoAdminSidebarLinks(page, { skipLabels: ["Goodies"] });
 
     await page.getByRole("button", { name: "Exit Game Mode" }).click();
     await dismissRulesModal(page);
@@ -86,6 +105,7 @@ test.describe("admin game mode", () => {
     await dismissRulesModal(page);
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByText(`Impersonating as ${taskerName}`)).toBeVisible();
+    await expectNoAdminSidebarLinks(page, { skipLabels: ["Goodies"] });
 
     await page.getByLabel("Problem ID").fill(`${prefix}-row`);
     await page.getByRole("combobox", { name: "Task type" }).click();
