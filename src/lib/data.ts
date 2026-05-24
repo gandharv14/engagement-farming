@@ -268,6 +268,15 @@ function reviewerDisplayName(reviewer: { display_name?: string | null; email?: s
   return reviewer?.display_name ?? reviewer?.email ?? `Reviewer ${reviewerId.slice(0, 8)}`;
 }
 
+function isMissingColumnError(error: { message?: string; code?: string } | null | undefined, columnNames: string[]) {
+  if (!error) {
+    return false;
+  }
+
+  const message = error.message ?? "";
+  return error.code === "42703" || columnNames.some((columnName) => message.includes(columnName));
+}
+
 async function getUserDisplayNames(
   supabase: SupabaseServerClient,
   userIds: string[],
@@ -651,6 +660,21 @@ type RawReviewerDashboardRow = RawReviewQueueRow & {
   reviewed_at: string | null;
 };
 
+type RawLegacyReviewQueueRow = Omit<RawReviewQueueRow, "reserved_by" | "reserved_until">;
+type RawLegacyReviewerDashboardRow = RawLegacyReviewQueueRow & {
+  status: string;
+  reviewer_id: string | null;
+  reviewed_at: string | null;
+};
+
+function withEmptyReservation<T extends RawLegacyReviewQueueRow>(row: T): T & Pick<RawReviewQueueRow, "reserved_by" | "reserved_until"> {
+  return {
+    ...row,
+    reserved_by: null,
+    reserved_until: null,
+  };
+}
+
 export async function getReviewQueue(reviewerId?: string): Promise<ReviewQueueRow[]> {
   const supabase = await createSupabaseServerClient();
 
@@ -659,19 +683,40 @@ export async function getReviewQueue(reviewerId?: string): Promise<ReviewQueueRo
   }
 
   const now = new Date();
-  await releaseExpiredReservations(supabase, now);
+  try {
+    await releaseExpiredReservations(supabase, now);
+  } catch (error) {
+    if (!isMissingColumnError(error instanceof Error ? error : null, ["reserved_by", "reserved_until"])) {
+      throw error;
+    }
+  }
 
   const { data, error } = await supabase
     .from("rows")
     .select("id, tasker_id, submitted_at, reserved_by, reserved_until, metadata")
     .eq("status", "pending_review")
     .order("submitted_at", { ascending: true });
+  let queueRows = (data ?? []) as RawReviewQueueRow[];
 
   if (error) {
-    throw new Error(error.message);
+    if (!isMissingColumnError(error, ["reserved_by", "reserved_until"])) {
+      throw new Error(error.message);
+    }
+
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("rows")
+      .select("id, tasker_id, submitted_at, metadata")
+      .eq("status", "pending_review")
+      .order("submitted_at", { ascending: true });
+
+    if (legacyError) {
+      throw new Error(legacyError.message);
+    }
+
+    queueRows = ((legacyData ?? []) as RawLegacyReviewQueueRow[]).map(withEmptyReservation);
   }
 
-  const rows = ((data ?? []) as RawReviewQueueRow[]).filter(
+  const rows = queueRows.filter(
     (row) => !isReviewReservationActive(row.reserved_until, now) || row.reserved_by === reviewerId,
   );
   const contexts = await getTaskerStreakContexts(
@@ -757,16 +802,48 @@ export async function getReviewerDashboard(): Promise<ReviewerDashboardData> {
     throw new ReviewerDashboardDataError(message);
   }
 
-  if (pendingResult.error) {
-    throw new ReviewerDashboardDataError(pendingResult.error.message);
-  }
+  let pendingRows: RawReviewerDashboardRow[];
+  let reviewedRows: RawReviewerDashboardRow[];
+  const missingReservationColumns =
+    isMissingColumnError(pendingResult.error, ["reserved_by", "reserved_until"]) ||
+    isMissingColumnError(reviewedResult.error, ["reserved_by", "reserved_until"]);
 
-  if (reviewedResult.error) {
-    throw new ReviewerDashboardDataError(reviewedResult.error.message);
-  }
+  if (missingReservationColumns) {
+    const [legacyPendingResult, legacyReviewedResult] = await Promise.all([
+      supabase
+        .from("rows")
+        .select("id, tasker_id, submitted_at, status, reviewer_id, reviewed_at, metadata")
+        .eq("status", "pending_review")
+        .order("submitted_at", { ascending: true }),
+      supabase
+        .from("rows")
+        .select("id, tasker_id, submitted_at, status, reviewer_id, reviewed_at, metadata")
+        .in("status", ["accepted_clean", "rejected"])
+        .order("reviewed_at", { ascending: false }),
+    ]);
 
-  const pendingRows = (pendingResult.data ?? []) as RawReviewerDashboardRow[];
-  const reviewedRows = (reviewedResult.data ?? []) as RawReviewerDashboardRow[];
+    if (legacyPendingResult.error) {
+      throw new ReviewerDashboardDataError(legacyPendingResult.error.message);
+    }
+
+    if (legacyReviewedResult.error) {
+      throw new ReviewerDashboardDataError(legacyReviewedResult.error.message);
+    }
+
+    pendingRows = ((legacyPendingResult.data ?? []) as RawLegacyReviewerDashboardRow[]).map(withEmptyReservation);
+    reviewedRows = ((legacyReviewedResult.data ?? []) as RawLegacyReviewerDashboardRow[]).map(withEmptyReservation);
+  } else {
+    if (pendingResult.error) {
+      throw new ReviewerDashboardDataError(pendingResult.error.message);
+    }
+
+    if (reviewedResult.error) {
+      throw new ReviewerDashboardDataError(reviewedResult.error.message);
+    }
+
+    pendingRows = (pendingResult.data ?? []) as RawReviewerDashboardRow[];
+    reviewedRows = (reviewedResult.data ?? []) as RawReviewerDashboardRow[];
+  }
   const pendingTaskerContexts = await getTaskerStreakContexts(
     supabase,
     pendingRows.map((row) => row.tasker_id),
@@ -840,21 +917,35 @@ export async function getReviewDetail(rowId: string, reviewerId: string): Promis
 
   const { data, error } = await supabase
     .from("rows")
-    .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, metadata")
+    .select("id, tasker_id, submitted_at, status, reserved_by, reserved_until, reviewer_id, metadata")
     .eq("id", rowId)
     .maybeSingle();
+  let row = data as (RawReviewQueueRow & { status: string; reviewer_id: string | null }) | null;
 
   if (error) {
-    throw new Error(error.message);
-  }
+    if (!isMissingColumnError(error, ["reserved_by", "reserved_until"])) {
+      throw new Error(error.message);
+    }
 
-  const row = data as (RawReviewQueueRow & { status: string }) | null;
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("rows")
+      .select("id, tasker_id, submitted_at, status, reviewer_id, metadata")
+      .eq("id", rowId)
+      .maybeSingle();
+
+    if (legacyError) {
+      throw new Error(legacyError.message);
+    }
+
+    row = legacyData ? withEmptyReservation(legacyData as RawLegacyReviewerDashboardRow) : null;
+  }
 
   if (
     !row ||
     row.status !== "pending_review" ||
-    row.reserved_by !== reviewerId ||
-    !isReviewReservationActive(row.reserved_until, now)
+    (row.reserved_by
+      ? row.reserved_by !== reviewerId || !isReviewReservationActive(row.reserved_until, now)
+      : row.reviewer_id !== reviewerId)
   ) {
     return null;
   }

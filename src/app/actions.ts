@@ -62,6 +62,15 @@ function parseNonNegativeIntegerInput(value: string, label: string) {
   return numberValue;
 }
 
+function isMissingColumnError(error: { message?: string; code?: string } | null | undefined, columnNames: string[]) {
+  if (!error) {
+    return false;
+  }
+
+  const message = error.message ?? "";
+  return error.code === "42703" || columnNames.some((columnName) => message.includes(columnName));
+}
+
 function sprintConfigRedirectUrl(params: { saved?: boolean; warnings?: string[]; error?: string }) {
   const searchParams = new URLSearchParams();
 
@@ -178,12 +187,34 @@ export async function reviewRow(rowId: string, formData: FormData) {
     .gt("reserved_until", new Date().toISOString())
     .select("id")
     .maybeSingle();
+  let completedRow = reviewedRow;
 
   if (rowError) {
-    throw new Error(rowError.message);
+    if (!isMissingColumnError(rowError, ["reserved_by", "reserved_until"])) {
+      throw new Error(rowError.message);
+    }
+
+    const { data: legacyReviewedRow, error: legacyRowError } = await supabase
+      .from("rows")
+      .update({
+        status,
+        reviewer_id: reviewer.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", rowId)
+      .eq("status", "pending_review")
+      .eq("reviewer_id", reviewer.id)
+      .select("id")
+      .maybeSingle();
+
+    if (legacyRowError) {
+      throw new Error(legacyRowError.message);
+    }
+
+    completedRow = legacyReviewedRow;
   }
 
-  if (!reviewedRow) {
+  if (!completedRow) {
     throw new Error("Review reservation expired or belongs to another reviewer.");
   }
 
@@ -221,6 +252,10 @@ export async function releaseExpiredReviewReservations() {
     .not("reserved_by", "is", null);
 
   if (error) {
+    if (isMissingColumnError(error, ["reserved_by", "reserved_until"])) {
+      return;
+    }
+
     throw new Error(error.message);
   }
 
@@ -244,6 +279,23 @@ export async function releaseReviewReservation(rowId: string) {
     .eq("reserved_by", reviewer.id);
 
   if (error) {
+    if (isMissingColumnError(error, ["reserved_by", "reserved_until"])) {
+      const { error: legacyError } = await supabase
+        .from("rows")
+        .update({ reviewer_id: null, reviewed_at: null })
+        .eq("id", rowId)
+        .eq("status", "pending_review")
+        .eq("reviewer_id", reviewer.id);
+
+      if (legacyError) {
+        throw new Error(legacyError.message);
+      }
+
+      revalidatePath("/review/queue");
+      revalidatePath(`/review/${rowId}`);
+      return;
+    }
+
     throw new Error(error.message);
   }
 
@@ -276,12 +328,33 @@ export async function reserveReviewRow(rowId: string) {
     .or(`reserved_by.is.null,reserved_by.eq.${reviewer.id},reserved_until.lte.${now.toISOString()}`)
     .select("id")
     .maybeSingle();
+  let activeReviewRow = reservedRow;
 
   if (error) {
-    throw new Error(error.message);
+    if (!isMissingColumnError(error, ["reserved_by", "reserved_until"])) {
+      throw new Error(error.message);
+    }
+
+    const { data: legacyReservedRow, error: legacyError } = await supabase
+      .from("rows")
+      .update({
+        reviewer_id: reviewer.id,
+        reviewed_at: null,
+      })
+      .eq("id", rowId)
+      .eq("status", "pending_review")
+      .or(`reviewer_id.is.null,reviewer_id.eq.${reviewer.id}`)
+      .select("id")
+      .maybeSingle();
+
+    if (legacyError) {
+      throw new Error(legacyError.message);
+    }
+
+    activeReviewRow = legacyReservedRow;
   }
 
-  if (!reservedRow) {
+  if (!activeReviewRow) {
     throw new Error("This row is already reserved by another reviewer.");
   }
 

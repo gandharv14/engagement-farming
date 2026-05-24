@@ -135,6 +135,29 @@ export async function createE2EUser(prefix: string, role: AppRole = "tasker") {
   return data as E2EUser;
 }
 
+export async function ensureE2EBypassUser(role: AppRole) {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase
+    .from("users")
+    .upsert(
+      {
+        auth0_sub: `e2e|${role}`,
+        email: `${role}@e2e.test`,
+        display_name: `E2E ${role}`,
+        role,
+      },
+      { onConflict: "auth0_sub" },
+    )
+    .select("id, auth0_sub, email, display_name, role")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as E2EUser;
+}
+
 export async function getUserById(userId: string) {
   const supabase = createE2ESupabaseClient();
   const { data, error } = await supabase.from("users").select("id, email, display_name, role").eq("id", userId).maybeSingle();

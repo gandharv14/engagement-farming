@@ -46,7 +46,17 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ r
             </Button>
           </div>
         </div>
-        <ReservationTimer rowId={row.id} reservedUntil={row.reserved_until!} />
+        {row.reserved_until ? (
+          <ReservationTimer rowId={row.id} reservedUntil={row.reserved_until} />
+        ) : (
+          <div className="rounded-2xl border border-arena-gold/25 bg-arena-gold/10 p-4">
+            <p className="text-xs text-muted-foreground">Reservation lock unavailable</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This database has not been migrated to timed review reservations yet. Finish the review or return to the
+              dashboard.
+            </p>
+          </div>
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Submission Metadata</CardTitle>

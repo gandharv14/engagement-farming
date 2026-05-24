@@ -5,7 +5,16 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   await requireRole(["tasker", "reviewer", "admin"]);
-  const { token, expiresAt } = await auth0.getAccessToken(getAuth0AccessTokenOptions());
 
-  return Response.json({ token, expiresAt });
+  try {
+    const { token, expiresAt } = await auth0.getAccessToken(getAuth0AccessTokenOptions());
+
+    return Response.json({ token, expiresAt });
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "missing_session") {
+      return new Response(null, { status: 401 });
+    }
+
+    throw error;
+  }
 }

@@ -3,11 +3,13 @@ import { expect, test, type Page } from "@playwright/test";
 import { hasStorageState, storageStatePath } from "./support/auth";
 import {
   cleanupByPrefix,
+  createE2EUser,
+  ensureE2EBypassUser,
   getE2EEmail,
   getRowsByPrefix,
   getUserByEmail,
   hasSupabaseAdminEnv,
-  seedPendingRowForTasker,
+  seedPendingRowForUserId,
 } from "./support/db";
 import { dismissRulesModal } from "./support/rules";
 
@@ -121,17 +123,24 @@ test.describe("admin game mode", () => {
     await expect(page).toHaveURL(/\/admin$/);
     await cleanupByPrefix(prefix);
   });
+});
+
+test.describe("admin reviewer impersonation e2e bypass", () => {
+  test.use({ extraHTTPHeaders: { "x-e2e-role": "admin" } });
 
   test("lets admins impersonate a reviewer and see pending review work", async ({ page }, testInfo) => {
     test.skip(!hasSupabaseAdminEnv(), "Missing Supabase service-role env for e2e seed/cleanup.");
-    test.skip(!getE2EEmail("tasker"), "Missing E2E_TASKER_EMAIL.");
-    test.skip(!getE2EEmail("reviewer"), "Missing E2E_REVIEWER_EMAIL.");
 
     const prefix = `e2e-reviewer-impersonate-${testInfo.workerIndex}-${Date.now()}`;
-    const reviewer = await getUserByEmail(getE2EEmail("reviewer")!);
-    const reviewerName = reviewer.display_name ?? reviewer.email ?? "Reviewer";
     await cleanupByPrefix(prefix);
-    await seedPendingRowForTasker(getE2EEmail("tasker")!, prefix);
+
+    const [, tasker, reviewer] = await Promise.all([
+      ensureE2EBypassUser("admin"),
+      createE2EUser(`${prefix}-tasker`, "tasker"),
+      createE2EUser(`${prefix}-reviewer`, "reviewer"),
+    ]);
+    const reviewerName = reviewer.display_name ?? reviewer.email ?? "Reviewer";
+    await seedPendingRowForUserId(tasker.id, prefix);
 
     await page.goto("/admin/game-mode");
     await dismissRulesModal(page);
@@ -142,8 +151,18 @@ test.describe("admin game mode", () => {
     await expect(page).toHaveURL(/\/review\/queue/);
     await expect(page.getByText(`Impersonating as ${reviewerName}`)).toBeVisible();
     await expect(page.getByRole("heading", { name: "Reviewer Dashboard" })).toBeVisible();
-    await expect(page.getByRole("row", { name: new RegExp(`${prefix}-pending.*Debugging.*4,242`) })).toBeVisible();
+    const queuedRow = page.getByRole("row", { name: new RegExp(`${prefix}-pending.*Debugging.*4,242`) });
+    await expect(queuedRow).toBeVisible();
     await expectNoAdminSidebarLinks(page);
+    await queuedRow.getByRole("button", { name: "Reserve" }).click();
+
+    await dismissRulesModal(page);
+    await expect(page.getByRole("heading", { name: "Review Row" })).toBeVisible();
+    await page.getByLabel("Optional notes").fill("E2E admin reviewer impersonation pass");
+    await page.getByRole("button", { name: "Pass" }).click();
+    await expect(page).toHaveURL(/\/review\/queue/);
+    await page.getByRole("tab", { name: "Reviewed" }).click();
+    await expect(page.getByRole("row", { name: new RegExp(`${prefix}-pending.*Passed`) })).toBeVisible();
 
     await page.getByRole("button", { name: "Exit Game Mode" }).click();
     await expect(page).toHaveURL(/\/admin$/);
