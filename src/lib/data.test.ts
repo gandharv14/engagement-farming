@@ -624,7 +624,7 @@ describe("data helpers", () => {
     });
   });
 
-  it("keeps the reviewer dashboard loadable when row reads are unavailable", async () => {
+  it("surfaces reviewer dashboard row read errors instead of rendering an empty queue", async () => {
     const supabase = createSupabaseMock({
       tables: {
         rows: ({ operations }) => {
@@ -638,11 +638,7 @@ describe("data helpers", () => {
     });
     mocks.createSupabaseServerClient.mockResolvedValue(supabase);
 
-    await expect(getReviewerDashboard()).resolves.toEqual({
-      availableRows: [],
-      reservedRows: [],
-      reviewedRows: [],
-    });
+    await expect(getReviewerDashboard()).rejects.toThrow("row read denied");
   });
 
   it("surfaces review queue query errors instead of rendering an empty queue", async () => {

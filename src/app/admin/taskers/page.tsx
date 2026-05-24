@@ -34,7 +34,8 @@ export default async function AdminTaskersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Tasker</TableHead>
-              <TableHead>Submitted</TableHead>
+              <TableHead>Pending review</TableHead>
+              <TableHead>Total submitted</TableHead>
               <TableHead>Acceptance rate</TableHead>
               <TableHead>Streak</TableHead>
               <TableHead className="text-right">Total cost</TableHead>
@@ -44,6 +45,8 @@ export default async function AdminTaskersPage() {
           <TableBody>
             {((users ?? []) as { id: string; auth0_sub: string; display_name: string | null; email: string | null }[]).map((tasker) => {
               const taskerRows = rowList.filter((row) => row.tasker_id === tasker.id);
+              const pendingRows = taskerRows.filter((row) => row.status === "pending_review").length;
+              const reviewedRows = taskerRows.filter((row) => row.status === "accepted_clean" || row.status === "rejected");
               const accepted = taskerRows.filter((row) => row.status === "accepted_clean").length;
               const cost = earningList
                 .filter((earning) => earning.user_id === tasker.id)
@@ -55,8 +58,9 @@ export default async function AdminTaskersPage() {
               return (
                 <TableRow key={tasker.id}>
                   <TableCell>{taskerName}</TableCell>
+                  <TableCell>{pendingRows}</TableCell>
                   <TableCell>{taskerRows.length}</TableCell>
-                  <TableCell>{taskerRows.length ? `${Math.round((accepted / taskerRows.length) * 100)}%` : "0%"}</TableCell>
+                  <TableCell>{reviewedRows.length ? `${Math.round((accepted / reviewedRows.length) * 100)}%` : "0%"}</TableCell>
                   <TableCell>{streak} days</TableCell>
                   <TableCell className="text-right">{formatCurrency(cost)}</TableCell>
                   <TableCell className="text-right">

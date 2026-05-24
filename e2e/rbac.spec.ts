@@ -7,6 +7,7 @@ import {
   getRowsByPrefix,
   getUserByEmail,
   hasSupabaseAdminEnv,
+  seedPendingRowForTasker,
 } from "./support/db";
 import { dismissRulesModal } from "./support/rules";
 
@@ -56,13 +57,13 @@ test.describe("reviewer RBAC", () => {
     await page.goto("/admin");
     await dismissRulesModal(page);
     await expect(page).toHaveURL(/\/review\/queue/);
-    await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Reviewer Dashboard" })).toBeVisible();
     await expectNoAdminSidebarLinks(page);
 
     await page.goto("/");
     await dismissRulesModal(page);
     await expect(page).toHaveURL(/\/review\/queue/);
-    await expect(page.getByRole("heading", { name: "Review Queue" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Reviewer Dashboard" })).toBeVisible();
     await expectNoAdminSidebarLinks(page);
   });
 });
@@ -115,6 +116,34 @@ test.describe("admin game mode", () => {
     await page.getByRole("button", { name: "Submit Sprint Entry" }).click();
 
     await expect.poll(async () => (await getRowsByPrefix(prefix)).map((row) => row.tasker_id)).toEqual([tasker.id]);
+
+    await page.getByRole("button", { name: "Exit Game Mode" }).click();
+    await expect(page).toHaveURL(/\/admin$/);
+    await cleanupByPrefix(prefix);
+  });
+
+  test("lets admins impersonate a reviewer and see pending review work", async ({ page }, testInfo) => {
+    test.skip(!hasSupabaseAdminEnv(), "Missing Supabase service-role env for e2e seed/cleanup.");
+    test.skip(!getE2EEmail("tasker"), "Missing E2E_TASKER_EMAIL.");
+    test.skip(!getE2EEmail("reviewer"), "Missing E2E_REVIEWER_EMAIL.");
+
+    const prefix = `e2e-reviewer-impersonate-${testInfo.workerIndex}-${Date.now()}`;
+    const reviewer = await getUserByEmail(getE2EEmail("reviewer")!);
+    const reviewerName = reviewer.display_name ?? reviewer.email ?? "Reviewer";
+    await cleanupByPrefix(prefix);
+    await seedPendingRowForTasker(getE2EEmail("tasker")!, prefix);
+
+    await page.goto("/admin/game-mode");
+    await dismissRulesModal(page);
+    await page.getByLabel("Reviewer").selectOption(reviewer.id);
+    await page.getByRole("button", { name: "Enter as Selected Reviewer" }).click();
+    await dismissRulesModal(page);
+
+    await expect(page).toHaveURL(/\/review\/queue/);
+    await expect(page.getByText(`Impersonating as ${reviewerName}`)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Reviewer Dashboard" })).toBeVisible();
+    await expect(page.getByRole("row", { name: new RegExp(`${prefix}-pending.*Debugging.*4,242`) })).toBeVisible();
+    await expectNoAdminSidebarLinks(page);
 
     await page.getByRole("button", { name: "Exit Game Mode" }).click();
     await expect(page).toHaveURL(/\/admin$/);

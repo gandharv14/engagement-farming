@@ -132,6 +132,13 @@ export type ReviewerDashboardData = {
   reviewedRows: ReviewerDashboardRow[];
 };
 
+export class ReviewerDashboardDataError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReviewerDashboardDataError";
+  }
+}
+
 export type AdminDashboardData = {
   acceptedRows: number;
   targetRows: number;
@@ -708,15 +715,17 @@ function buildReviewerDashboardRow({
 }
 
 export async function getReviewerDashboard(): Promise<ReviewerDashboardData> {
-  const emptyDashboard = {
-    availableRows: [],
-    reservedRows: [],
-    reviewedRows: [],
-  };
-  const supabase = await createSupabaseServerClient().catch(() => null);
+  let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+  try {
+    supabase = await createSupabaseServerClient();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to create Supabase client.";
+    throw new ReviewerDashboardDataError(message);
+  }
 
   if (!supabase) {
-    return emptyDashboard;
+    throw new ReviewerDashboardDataError("Supabase is not configured.");
   }
 
   const now = new Date();
@@ -743,12 +752,21 @@ export async function getReviewerDashboard(): Promise<ReviewerDashboardData> {
         .in("status", ["accepted_clean", "rejected"])
         .order("reviewed_at", { ascending: false }),
     ]);
-  } catch {
-    return emptyDashboard;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown reviewer dashboard read failure.";
+    throw new ReviewerDashboardDataError(message);
   }
 
-  const pendingRows = pendingResult.error ? [] : ((pendingResult.data ?? []) as RawReviewerDashboardRow[]);
-  const reviewedRows = reviewedResult.error ? [] : ((reviewedResult.data ?? []) as RawReviewerDashboardRow[]);
+  if (pendingResult.error) {
+    throw new ReviewerDashboardDataError(pendingResult.error.message);
+  }
+
+  if (reviewedResult.error) {
+    throw new ReviewerDashboardDataError(reviewedResult.error.message);
+  }
+
+  const pendingRows = (pendingResult.data ?? []) as RawReviewerDashboardRow[];
+  const reviewedRows = (reviewedResult.data ?? []) as RawReviewerDashboardRow[];
   const pendingTaskerContexts = await getTaskerStreakContexts(
     supabase,
     pendingRows.map((row) => row.tasker_id),
