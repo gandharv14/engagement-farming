@@ -1,8 +1,69 @@
 import { expect, test } from "@playwright/test";
 
 import { hasStorageState, storageStatePath } from "./support/auth";
-import { cleanupByPrefix, getE2EEmail, getUserByEmail, hasSupabaseAdminEnv } from "./support/db";
+import {
+  cleanupByPrefix,
+  createE2ESupabaseClient,
+  createE2EUser,
+  getE2EEmail,
+  getUserByEmail,
+  hasSupabaseAdminEnv,
+} from "./support/db";
 import { dismissRulesModal } from "./support/rules";
+
+async function getUnassignedTaskerIds() {
+  const supabase = createE2ESupabaseClient();
+  const [{ data: taskers, error: taskersError }, { data: memberships, error: membershipsError }] = await Promise.all([
+    supabase.from("users").select("id").eq("role", "tasker"),
+    supabase.from("guild_memberships").select("user_id"),
+  ]);
+
+  if (taskersError || membershipsError) {
+    throw new Error((taskersError ?? membershipsError)?.message);
+  }
+
+  const assignedTaskerIds = new Set(((memberships ?? []) as { user_id: string }[]).map((membership) => membership.user_id));
+
+  return ((taskers ?? []) as { id: string }[]).filter((tasker) => !assignedTaskerIds.has(tasker.id)).map((tasker) => tasker.id);
+}
+
+async function createGuildsForE2E(prefix: string) {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase
+    .from("guilds")
+    .insert([{ name: `${prefix} Alpha` }, { name: `${prefix} Beta` }, { name: `${prefix} Gamma` }])
+    .select("id, name");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as { id: string; name: string }[];
+}
+
+async function getMembershipsByUserId(userIds: string[]) {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase.from("guild_memberships").select("user_id, guild_id").in("user_id", userIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return new Map(((data ?? []) as { user_id: string; guild_id: string }[]).map((membership) => [membership.user_id, membership.guild_id]));
+}
+
+async function removeGuildMembershipsForUsers(userIds: string[]) {
+  if (!userIds.length) {
+    return;
+  }
+
+  const supabase = createE2ESupabaseClient();
+  const { error } = await supabase.from("guild_memberships").delete().in("user_id", userIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
 
 test.describe("admin Guilds", () => {
   test.skip(!hasStorageState("admin"), "Missing e2e/.auth/admin.json. See docs/e2e-testing.md.");
@@ -52,6 +113,65 @@ test.describe("admin Guilds", () => {
     await expect(page.getByLabel(`Name for ${renamedGuildName}`)).toHaveCount(0);
 
     await cleanupByPrefix(prefix);
+  });
+});
+
+test.describe("admin Guilds auto assign", () => {
+  test.skip(!hasSupabaseAdminEnv(), "Missing Supabase service-role env for e2e database helpers.");
+  test.use({ extraHTTPHeaders: { "x-e2e-role": "admin" } });
+
+  test("assigns unassigned taskers to the smallest guilds without moving existing members", async ({ page }, testInfo) => {
+    const prefix = `e2e-auto-guild-${testInfo.workerIndex}-${Date.now()}`;
+
+    await cleanupByPrefix(prefix);
+    const preExistingUnassignedTaskerIds = await getUnassignedTaskerIds();
+
+    try {
+      const [assignedTasker, taskerOne, taskerTwo, taskerThree] = await Promise.all([
+        createE2EUser(`${prefix}-assigned`),
+        createE2EUser(`${prefix}-one`),
+        createE2EUser(`${prefix}-two`),
+        createE2EUser(`${prefix}-three`),
+      ]);
+      const guilds = await createGuildsForE2E(prefix);
+      const guildByName = new Map(guilds.map((guild) => [guild.name, guild.id]));
+      const alphaGuildId = guildByName.get(`${prefix} Alpha`);
+      const betaGuildId = guildByName.get(`${prefix} Beta`);
+      const gammaGuildId = guildByName.get(`${prefix} Gamma`);
+
+      if (!alphaGuildId || !betaGuildId || !gammaGuildId) {
+        throw new Error("Expected all e2e guilds to be created.");
+      }
+
+      const supabase = createE2ESupabaseClient();
+      const { error: membershipError } = await supabase.from("guild_memberships").insert({
+        guild_id: alphaGuildId,
+        user_id: assignedTasker.id,
+      });
+
+      if (membershipError) {
+        throw new Error(membershipError.message);
+      }
+
+      await page.goto("/admin/guilds");
+      await dismissRulesModal(page);
+      await expect(page.getByRole("heading", { name: "Guilds" })).toBeVisible();
+      await expect(page.getByText(`${preExistingUnassignedTaskerIds.length + 3} unassigned taskers ready to place.`)).toBeVisible();
+
+      await page.getByRole("button", { name: "Auto assign unassigned taskers" }).click();
+      await expect(page.getByText("All taskers are assigned to a guild.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Auto assign unassigned taskers" })).toBeDisabled();
+
+      const memberships = await getMembershipsByUserId([assignedTasker.id, taskerOne.id, taskerTwo.id, taskerThree.id]);
+
+      expect(memberships.get(assignedTasker.id)).toBe(alphaGuildId);
+      expect(memberships.get(taskerOne.id)).toBeTruthy();
+      expect(memberships.get(taskerTwo.id)).toBeTruthy();
+      expect(memberships.get(taskerThree.id)).toBeTruthy();
+    } finally {
+      await removeGuildMembershipsForUsers(preExistingUnassignedTaskerIds);
+      await cleanupByPrefix(prefix);
+    }
   });
 });
 

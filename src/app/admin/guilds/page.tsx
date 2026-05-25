@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createSupabaseServerClient } from "@/lib/supabase";
-import { assignGuildMember, createGuild, deleteGuild, removeGuildMember, renameGuild } from "./actions";
+import { assignGuildMember, autoAssignGuildMembers, createGuild, deleteGuild, removeGuildMember, renameGuild } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +46,7 @@ export default async function AdminGuildsPage() {
   const membershipRows = (memberships ?? []) as unknown as MembershipRow[];
   const taskerRows = (taskers ?? []) as TaskerRow[];
   const assignedTaskerIds = new Set(membershipRows.map((membership) => membership.user_id));
+  const unassignedTaskerCount = taskerRows.filter((tasker) => !assignedTaskerIds.has(tasker.id)).length;
 
   return (
     <div className="space-y-6">
@@ -120,6 +121,25 @@ export default async function AdminGuildsPage() {
                 </div>
                 <Button type="submit" className="w-full md:w-auto" disabled={!guildRows.length || !taskerRows.length}>
                   Assign
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="min-w-0 lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Auto Assign</CardTitle>
+              <CardDescription>Assign only taskers without a guild, filling the smallest guilds first.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={autoAssignGuildMembers} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {unassignedTaskerCount
+                    ? `${unassignedTaskerCount} unassigned tasker${unassignedTaskerCount === 1 ? "" : "s"} ready to place.`
+                    : "All taskers are assigned to a guild."}
+                </p>
+                <Button type="submit" className="w-full sm:w-auto" disabled={!guildRows.length || !unassignedTaskerCount}>
+                  Auto assign unassigned taskers
                 </Button>
               </form>
             </CardContent>

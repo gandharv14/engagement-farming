@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase";
+import { computeBalancedGuildAssignments } from "./assignment";
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -93,6 +94,38 @@ export async function assignGuildMember(formData: FormData) {
 
   if (insertError) {
     throw new Error(insertError.message);
+  }
+
+  revalidateGuildSurfaces();
+}
+
+export async function autoAssignGuildMembers() {
+  const supabase = await getAdminSupabase();
+  const [{ data: guilds, error: guildsError }, { data: memberships, error: membershipsError }, { data: taskers, error: taskersError }] =
+    await Promise.all([
+      supabase.from("guilds").select("id").order("name"),
+      supabase.from("guild_memberships").select("user_id, guild_id"),
+      supabase.from("users").select("id").eq("role", "tasker").order("display_name"),
+    ]);
+
+  const lookupError = guildsError ?? membershipsError ?? taskersError;
+
+  if (lookupError) {
+    throw new Error(lookupError.message);
+  }
+
+  const assignments = computeBalancedGuildAssignments({
+    guilds: (guilds ?? []) as { id: string }[],
+    memberships: (memberships ?? []) as { user_id: string; guild_id: string }[],
+    taskers: (taskers ?? []) as { id: string }[],
+  });
+
+  if (assignments.length) {
+    const { error } = await supabase.from("guild_memberships").insert(assignments);
+
+    if (error) {
+      throw new Error(error.message);
+    }
   }
 
   revalidateGuildSurfaces();
