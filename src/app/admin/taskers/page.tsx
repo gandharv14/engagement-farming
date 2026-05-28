@@ -1,5 +1,7 @@
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/data";
 import { createSupabaseServerClient } from "@/lib/supabase";
@@ -7,7 +9,20 @@ import { promoteTaskerToReviewer, removeTasker } from "../role-actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminTaskersPage() {
+type AdminTaskersSearchParams = {
+  sort?: string;
+};
+
+type Tasker = {
+  id: string;
+  auth0_sub: string;
+  display_name: string | null;
+  email: string | null;
+};
+
+export default async function AdminTaskersPage({ searchParams }: { searchParams?: Promise<AdminTaskersSearchParams> }) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const isSortedByPendingTasks = resolvedSearchParams.sort === "pending-tasks";
   const supabase = await createSupabaseServerClient();
   const [{ data: users }, { data: rows }, { data: earnings }, { data: streaks }] = supabase
     ? await Promise.all([
@@ -21,6 +36,31 @@ export default async function AdminTaskersPage() {
   const rowList = (rows ?? []) as { tasker_id: string; status: string }[];
   const earningList = (earnings ?? []) as { user_id: string; amount_cents: number }[];
   const streakList = (streaks ?? []) as { user_id: string; current_streak_days: number }[];
+  const taskers = ((users ?? []) as Tasker[]).map((tasker) => {
+    const taskerRows = rowList.filter((row) => row.tasker_id === tasker.id);
+    const pendingRows = taskerRows.filter((row) => row.status === "pending_review").length;
+    const reviewedRows = taskerRows.filter((row) => row.status === "accepted_clean" || row.status === "rejected");
+    const accepted = taskerRows.filter((row) => row.status === "accepted_clean").length;
+    const cost = earningList
+      .filter((earning) => earning.user_id === tasker.id)
+      .reduce((sum, earning) => sum + earning.amount_cents, 0);
+    const streak = streakList.find((item) => item.user_id === tasker.id)?.current_streak_days ?? 0;
+    const taskerName = tasker.display_name ?? tasker.email ?? "Tasker";
+
+    return {
+      ...tasker,
+      accepted,
+      cost,
+      pendingRows,
+      reviewedRows,
+      streak,
+      taskerName,
+      taskerRows,
+    };
+  });
+  const displayedTaskers = isSortedByPendingTasks
+    ? [...taskers].sort((a, b) => b.pendingRows - a.pendingRows || a.taskerName.localeCompare(b.taskerName))
+    : taskers;
 
   return (
     <Card>
@@ -28,6 +68,13 @@ export default async function AdminTaskersPage() {
         <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-pink">Roster Intel</p>
         <CardTitle>Taskers</CardTitle>
         <CardDescription>Admin-only per-tasker cost and acceptance visibility.</CardDescription>
+        <CardAction>
+          <Button asChild size="sm" variant={isSortedByPendingTasks ? "outline" : "secondary"}>
+            <Link href={isSortedByPendingTasks ? "/admin/taskers" : "/admin/taskers?sort=pending-tasks"}>
+              {isSortedByPendingTasks ? "Clear pending sort" : "Sort by pending tasks"}
+            </Link>
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent>
         <Table>
@@ -43,26 +90,21 @@ export default async function AdminTaskersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {((users ?? []) as { id: string; auth0_sub: string; display_name: string | null; email: string | null }[]).map((tasker) => {
-              const taskerRows = rowList.filter((row) => row.tasker_id === tasker.id);
-              const pendingRows = taskerRows.filter((row) => row.status === "pending_review").length;
-              const reviewedRows = taskerRows.filter((row) => row.status === "accepted_clean" || row.status === "rejected");
-              const accepted = taskerRows.filter((row) => row.status === "accepted_clean").length;
-              const cost = earningList
-                .filter((earning) => earning.user_id === tasker.id)
-                .reduce((sum, earning) => sum + earning.amount_cents, 0);
-              const streak = streakList.find((item) => item.user_id === tasker.id)?.current_streak_days ?? 0;
-              const taskerName = tasker.display_name ?? tasker.email ?? "Tasker";
+            {displayedTaskers.map((tasker) => {
               const isAdminGameProfile = tasker.auth0_sub.startsWith("admin-game|");
 
               return (
                 <TableRow key={tasker.id}>
-                  <TableCell>{taskerName}</TableCell>
-                  <TableCell>{pendingRows}</TableCell>
-                  <TableCell>{taskerRows.length}</TableCell>
-                  <TableCell>{reviewedRows.length ? `${Math.round((accepted / reviewedRows.length) * 100)}%` : "0%"}</TableCell>
-                  <TableCell>{streak} days</TableCell>
-                  <TableCell className="text-right">{formatCurrency(cost)}</TableCell>
+                  <TableCell>{tasker.taskerName}</TableCell>
+                  <TableCell>{tasker.pendingRows}</TableCell>
+                  <TableCell>{tasker.taskerRows.length}</TableCell>
+                  <TableCell>
+                    {tasker.reviewedRows.length
+                      ? `${Math.round((tasker.accepted / tasker.reviewedRows.length) * 100)}%`
+                      : "0%"}
+                  </TableCell>
+                  <TableCell>{tasker.streak} days</TableCell>
+                  <TableCell className="text-right">{formatCurrency(tasker.cost)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex flex-wrap justify-end gap-2">
                       <form action={promoteTaskerToReviewer.bind(null, tasker.id)}>
@@ -71,7 +113,7 @@ export default async function AdminTaskersPage() {
                           size="sm"
                           variant="secondary"
                           disabled={isAdminGameProfile}
-                          aria-label={`Promote ${taskerName} to Reviewer`}
+                          aria-label={`Promote ${tasker.taskerName} to Reviewer`}
                         >
                           Promote to Reviewer
                         </Button>
@@ -82,7 +124,7 @@ export default async function AdminTaskersPage() {
                           size="sm"
                           variant="destructive"
                           disabled={isAdminGameProfile}
-                          aria-label={`Remove ${taskerName}`}
+                          aria-label={`Remove ${tasker.taskerName}`}
                         >
                           Remove
                         </Button>
