@@ -2,6 +2,7 @@ import { ArrowRight, CheckCircle2, Clock, ListChecks, ShieldCheck, XCircle } fro
 import Link from "next/link";
 
 import { reserveReviewRow } from "@/app/actions";
+import { ReviseDecisionForm } from "@/app/review/queue/revise-decision-form";
 import { AppShell } from "@/components/app/app-shell";
 import { RealtimeRefresh } from "@/components/app/realtime-refresh";
 import { Badge } from "@/components/ui/badge";
@@ -188,6 +189,7 @@ function ReviewedRowsTable({ rows }: { rows: ReviewerDashboardRow[] }) {
           <TableHead>Token count</TableHead>
           <TableHead>Reviewer</TableHead>
           <TableHead>Outcome</TableHead>
+          <TableHead className="text-right">Revise</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -205,10 +207,15 @@ function ReviewedRowsTable({ rows }: { rows: ReviewerDashboardRow[] }) {
               <TableCell>
                 <OutcomeBadge status={row.status} />
               </TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end">
+                  <ReviseDecisionForm rowId={row.id} currentStatus={row.status} />
+                </div>
+              </TableCell>
             </TableRow>
           ))
         ) : (
-          <EmptyTableRow colSpan={7} message="No reviewed tasks yet." />
+          <EmptyTableRow colSpan={8} message="No reviewed tasks yet." />
         )}
       </TableBody>
     </Table>
@@ -288,7 +295,7 @@ export default async function ReviewQueuePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Reviewed Tasks</CardTitle>
-                <CardDescription>Completed pass/fail decisions across reviewers.</CardDescription>
+                <CardDescription>Completed pass/fail decisions across reviewers. Flip an outcome to revise a decision.</CardDescription>
               </CardHeader>
               <CardContent>
                 <ReviewedRowsTable rows={dashboard.reviewedRows} />

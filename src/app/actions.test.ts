@@ -37,7 +37,15 @@ vi.mock("@/lib/supabase", () => ({
   createSupabaseServerClient: mocks.createSupabaseServerClient,
 }));
 
-import { releaseExpiredReviewReservations, releaseReviewReservation, reserveReviewRow, reviewRow, submitRow, updateSprintConfig } from "./actions";
+import {
+  releaseExpiredReviewReservations,
+  releaseReviewReservation,
+  reserveReviewRow,
+  reviewRow,
+  reviseReviewDecision,
+  submitRow,
+  updateSprintConfig,
+} from "./actions";
 
 type TableMocks = Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
@@ -81,7 +89,9 @@ function createReviewSupabase(options: { updateError?: Error; upsertError?: Erro
     error: mutationResult.error,
     eq: vi.fn(),
     gt: vi.fn(),
+    in: vi.fn(),
     lte: vi.fn(),
+    neq: vi.fn(),
     not: vi.fn(),
     or: vi.fn(),
     select: vi.fn(),
@@ -89,7 +99,9 @@ function createReviewSupabase(options: { updateError?: Error; upsertError?: Erro
   };
   rowQuery.eq.mockReturnValue(rowQuery);
   rowQuery.gt.mockReturnValue(rowQuery);
+  rowQuery.in.mockReturnValue(rowQuery);
   rowQuery.lte.mockReturnValue(rowQuery);
+  rowQuery.neq.mockReturnValue(rowQuery);
   rowQuery.not.mockReturnValue(rowQuery);
   rowQuery.or.mockReturnValue(rowQuery);
   rowQuery.select.mockReturnValue(rowQuery);
@@ -309,6 +321,52 @@ describe("server actions", () => {
       );
 
       expect(mocks.redirect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("reviseReviewDecision", () => {
+    it("flips a completed decision to the opposite outcome and revalidates", async () => {
+      const { supabase, rowQuery, update, reviewUpsert } = createReviewSupabase();
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await reviseReviewDecision("row-id", formData({ status: "rejected", notes: "Re-checked." }));
+
+      expect(mocks.requireReviewerGameContext).toHaveBeenCalled();
+      expect(update).toHaveBeenCalledWith({
+        status: "rejected",
+        reviewer_id: "reviewer-id",
+        reviewed_at: expect.any(String),
+      });
+      expect(rowQuery.eq).toHaveBeenCalledWith("id", "row-id");
+      expect(rowQuery.in).toHaveBeenCalledWith("status", ["accepted_clean", "rejected"]);
+      expect(rowQuery.neq).toHaveBeenCalledWith("status", "rejected");
+      expect(reviewUpsert).toHaveBeenCalledWith({
+        row_id: "row-id",
+        reviewer_id: "reviewer-id",
+        notes: "Re-checked.",
+      });
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/review/queue");
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+    });
+
+    it("rejects unsupported review statuses before updating rows", async () => {
+      const { supabase, update } = createReviewSupabase();
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await expect(reviseReviewDecision("row-id", formData({ status: "pending_review" }))).rejects.toThrow(
+        "Invalid review status.",
+      );
+
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("fails when the row is no longer a revisable reviewed task", async () => {
+      const { supabase } = createReviewSupabase({ updatedRow: null });
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await expect(reviseReviewDecision("row-id", formData({ status: "accepted_clean" }))).rejects.toThrow(
+        "This task is no longer in the reviewed queue or already has that outcome.",
+      );
     });
   });
 

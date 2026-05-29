@@ -236,6 +236,59 @@ export async function reviewRow(rowId: string, formData: FormData) {
   redirect("/review/queue");
 }
 
+export async function reviseReviewDecision(rowId: string, formData: FormData) {
+  const context = await requireReviewerGameContext();
+  const supabase = await createSupabaseServerClient();
+  const reviewer = context.reviewer;
+  const status = formString(formData, "status");
+
+  if (!supabase || !reviewer) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  if (!["accepted_clean", "rejected"].includes(status)) {
+    throw new Error("Invalid review status.");
+  }
+
+  const { data: revisedRow, error: rowError } = await supabase
+    .from("rows")
+    .update({
+      status,
+      reviewer_id: reviewer.id,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", rowId)
+    .in("status", ["accepted_clean", "rejected"])
+    .neq("status", status)
+    .select("id")
+    .maybeSingle();
+
+  if (rowError) {
+    throw new Error(rowError.message);
+  }
+
+  if (!revisedRow) {
+    throw new Error("This task is no longer in the reviewed queue or already has that outcome.");
+  }
+
+  const notes = formString(formData, "notes");
+
+  if (notes) {
+    const { error: reviewError } = await supabase.from("row_reviews").upsert({
+      row_id: rowId,
+      reviewer_id: reviewer.id,
+      notes,
+    });
+
+    if (reviewError) {
+      throw new Error(reviewError.message);
+    }
+  }
+
+  revalidatePath("/review/queue");
+  revalidatePath("/");
+}
+
 export async function releaseExpiredReviewReservations() {
   await requireReviewerGameContext();
   const supabase = await createSupabaseServerClient();
