@@ -20,6 +20,18 @@ export type E2EUser = {
   role: AppRole;
 };
 
+export type E2ESprintConfig = {
+  id: number;
+  sprint_start_date: string;
+  sprint_end_date: string;
+  current_phase: "warmup" | "steady" | "finale" | "ended";
+  quality_multiplier: number;
+  endgame_bounty_active: boolean;
+  endgame_bounty_amount_cents: number;
+  collective_goal_rows: number;
+  collective_stretch_rows: number;
+};
+
 function loadEnvFile(filePath: string) {
   if (!existsSync(filePath)) {
     return;
@@ -76,6 +88,36 @@ export function createE2ESupabaseClient() {
       autoRefreshToken: false,
     },
   });
+}
+
+const sprintConfigColumns =
+  "id, sprint_start_date, sprint_end_date, current_phase, quality_multiplier, endgame_bounty_active, endgame_bounty_amount_cents, collective_goal_rows, collective_stretch_rows";
+
+export async function getE2ESprintConfig() {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase.from("sprint_config").select(sprintConfigColumns).eq("id", 1).single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as E2ESprintConfig;
+}
+
+export async function updateE2ESprintConfig(config: Partial<E2ESprintConfig>) {
+  const supabase = createE2ESupabaseClient();
+  const { data, error } = await supabase
+    .from("sprint_config")
+    .update(config)
+    .eq("id", 1)
+    .select(sprintConfigColumns)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as E2ESprintConfig;
 }
 
 export async function getUserByEmail(email: string): Promise<E2EUser> {

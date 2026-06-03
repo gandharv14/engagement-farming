@@ -36,13 +36,34 @@ function taskerRowStatusVariant(status: string): "default" | "secondary" | "dest
   return status === "accepted_clean" ? "default" : "outline";
 }
 
+function formatSprintDisplayDate(dateOnly: string) {
+  return new Date(`${dateOnly}T00:00:00.000Z`).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export default async function Home() {
   const context = await requireTaskerGameContext();
   const data = await getTaskerDashboard(context.tasker.auth0_sub);
+  const sprintEndDateLabel = formatSprintDisplayDate(data.config.sprint_end_date);
+  const sprintTimelineMessage = data.config.sprint_has_ended
+    ? `This sprint ended on ${sprintEndDateLabel}. Be back very soon.`
+    : `This sprint will end on ${sprintEndDateLabel}. Be back very soon.`;
+  const submissionsClosed = !data.config.accepting_submissions;
+  const todayStatusDescription = submissionsClosed
+    ? "Sprint submissions are closed."
+    : data.submissionsToday >= data.maxDailySubmissions
+      ? `Daily submission limit reached (${data.maxDailySubmissions} problems).`
+      : data.submittedToday
+        ? `${data.submissionsToday} of ${data.maxDailySubmissions} submissions logged today.`
+        : `No submission yet today. You can submit up to ${data.maxDailySubmissions} problems per day.`;
 
   return (
     <AppShell {...getTaskerShellProps(context)}>
-      <RealtimeRefresh subscriptions={[{ table: "rows" }, { table: "earnings" }, { table: "streaks" }]} />
+      <RealtimeRefresh subscriptions={[{ table: "rows" }, { table: "earnings" }, { table: "streaks" }, { table: "sprint_config" }]} />
       <div className="space-y-6">
         <section className="arena-panel relative overflow-hidden rounded-3xl p-6">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-arena-cyan via-arena-blue to-arena-pink" />
@@ -53,17 +74,25 @@ export default async function Home() {
                   Day {data.config.current_sprint_day} of {data.config.total_sprint_days}
                 </Badge>
                 <Badge variant="secondary" className="capitalize">
-                  {data.config.current_phase}
+                  {data.config.current_phase === "ended" ? "Sprint ended" : data.config.current_phase}
                 </Badge>
                 <Badge variant="outline">{data.config.quality_multiplier}x quality multiplier</Badge>
                 {data.config.endgame_bounty_active ? <Badge variant="destructive">Finale bounty active</Badge> : null}
               </div>
               <p className="font-mono text-xs uppercase tracking-[0.24em] text-arena-cyan">Live Token Sprint</p>
-              <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">Keep your streak online.</h1>
+              <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">
+                {data.config.sprint_has_ended ? "This sprint has ended." : "Keep your streak online."}
+              </h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Queue a clean row, defend your cadence, and push the arena toward{" "}
-                <span className="font-mono text-arena-gold">{data.config.collective_goal_rows.toLocaleString()}</span>{" "}
-                accepted problems.
+                {data.config.sprint_has_ended ? (
+                  sprintTimelineMessage
+                ) : (
+                  <>
+                    Queue a clean row, defend your cadence, and push the arena toward{" "}
+                    <span className="font-mono text-arena-gold">{data.config.collective_goal_rows.toLocaleString()}</span>{" "}
+                    accepted problems. {sprintTimelineMessage}
+                  </>
+                )}
               </p>
             </div>
             <div className="arena-glow rounded-3xl border border-arena-gold/30 bg-arena-gold/10 p-5 text-center">
@@ -100,61 +129,65 @@ export default async function Home() {
           <Card>
             <CardHeader>
               <CardTitle>Today&apos;s Status</CardTitle>
-              <CardDescription>
-                {data.submissionsToday >= data.maxDailySubmissions
-                  ? `Daily submission limit reached (${data.maxDailySubmissions} problems).`
-                  : data.submittedToday
-                    ? `${data.submissionsToday} of ${data.maxDailySubmissions} submissions logged today.`
-                    : `No submission yet today. You can submit up to ${data.maxDailySubmissions} problems per day.`}
-              </CardDescription>
+              <CardDescription>{todayStatusDescription}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3 rounded-2xl border border-arena-cyan/20 bg-arena-cyan/5 p-4">
                 <div className="space-y-2">
-                  <h2 className="text-lg font-semibold tracking-tight">Submit a Sprint Problem</h2>
+                  <h2 className="text-lg font-semibold tracking-tight">
+                    {submissionsClosed ? "Sprint Submissions Paused" : "Submit a Sprint Problem"}
+                  </h2>
                   <p className="rounded-xl border border-arena-gold/30 bg-arena-gold/10 px-3 py-2 text-sm font-medium text-arena-gold">
-                    To participate in today&apos;s sprint, fill all 4 fields below and submit your row.
+                    {submissionsClosed
+                      ? `Submissions are paused because the sprint has ended. ${sprintTimelineMessage}`
+                      : "To participate in today's sprint, fill all 4 fields below and submit your row."}
                   </p>
                 </div>
 
-                <form action={submitRow} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="problemId">Problem ID</Label>
-                    <Input id="problemId" name="problemId" placeholder="live-compare-**" required />
+                {submissionsClosed ? (
+                  <div className="rounded-2xl border border-dashed border-arena-gold/40 bg-background/40 p-4 text-sm text-muted-foreground">
+                    Tasker submissions are closed while the next sprint is prepared.
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="taskType">Task type</Label>
-                    <Select name="taskType" required>
-                      <SelectTrigger id="taskType" className="w-full bg-background/35 font-mono">
-                        <SelectValue placeholder="Select task type" />
-                      </SelectTrigger>
-                      <SelectContent position="popper">
-                        {TASK_TYPE_OPTIONS.map((taskType) => (
-                          <SelectItem key={taskType} value={taskType}>
-                            {taskType}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tokenCount">Token count</Label>
-                    <Input id="tokenCount" name="tokenCount" type="number" min="0" placeholder="1000000" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="taigaProblemUrl">Taiga problem link</Label>
-                    <Input id="taigaProblemUrl" name="taigaProblemUrl" type="url" placeholder="https://taiga..." required />
-                  </div>
-                  <Button
-                    className="md:col-span-2 xl:col-span-4"
-                    size="lg"
-                    type="submit"
-                    disabled={data.submissionsToday >= data.maxDailySubmissions}
-                  >
-                    <Target className="mr-2 h-4 w-4" />
-                    {data.submissionsToday >= data.maxDailySubmissions ? "Daily limit reached" : "Submit Sprint Entry"}
-                  </Button>
-                </form>
+                ) : (
+                  <form action={submitRow} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="problemId">Problem ID</Label>
+                      <Input id="problemId" name="problemId" placeholder="live-compare-**" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="taskType">Task type</Label>
+                      <Select name="taskType" required>
+                        <SelectTrigger id="taskType" className="w-full bg-background/35 font-mono">
+                          <SelectValue placeholder="Select task type" />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          {TASK_TYPE_OPTIONS.map((taskType) => (
+                            <SelectItem key={taskType} value={taskType}>
+                              {taskType}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="tokenCount">Token count</Label>
+                      <Input id="tokenCount" name="tokenCount" type="number" min="0" placeholder="1000000" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="taigaProblemUrl">Taiga problem link</Label>
+                      <Input id="taigaProblemUrl" name="taigaProblemUrl" type="url" placeholder="https://taiga..." required />
+                    </div>
+                    <Button
+                      className="md:col-span-2 xl:col-span-4"
+                      size="lg"
+                      type="submit"
+                      disabled={data.submissionsToday >= data.maxDailySubmissions}
+                    >
+                      <Target className="mr-2 h-4 w-4" />
+                      {data.submissionsToday >= data.maxDailySubmissions ? "Daily limit reached" : "Submit Sprint Entry"}
+                    </Button>
+                  </form>
+                )}
               </div>
 
               {data.milestoneRoadmap.length ? (

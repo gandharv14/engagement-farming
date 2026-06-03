@@ -313,7 +313,7 @@ export default async function AdminConfigPage({ searchParams }: { searchParams?:
               <FieldHelpLabel
                 htmlFor="currentPhase"
                 label="Current phase"
-                definition="The active sprint phase shown to taskers. Warmup, steady, and finale can be used to communicate where the sprint is in its incentive cycle."
+                definition="The active sprint phase shown to taskers. Use Ended to close submissions and show the sprint-ended message."
               />
               <select
                 id="currentPhase"
@@ -324,6 +324,7 @@ export default async function AdminConfigPage({ searchParams }: { searchParams?:
                 <option value="warmup">Warmup</option>
                 <option value="steady">Steady</option>
                 <option value="finale">Finale</option>
+                <option value="ended">Ended</option>
               </select>
             </div>
             <div className="grid gap-2">

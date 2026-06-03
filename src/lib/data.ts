@@ -1,6 +1,6 @@
-import { createSupabaseServerClient } from "@/lib/supabase";
-import { MAX_PROBLEMS_PER_TASKER_PER_DAY } from "@/lib/sprint-config";
 import { isReviewReservationActive } from "@/lib/review-reservations";
+import { getSprintDurationDays, MAX_PROBLEMS_PER_TASKER_PER_DAY, parseDateOnly } from "@/lib/sprint-config";
+import { createSupabaseServerClient } from "@/lib/supabase";
 
 export const acceptedStatuses = ["accepted_clean"] as const;
 
@@ -13,14 +13,20 @@ export type AppUserRow = {
   admin_game_owner_id?: string | null;
 };
 
+export type SprintPhase = "warmup" | "steady" | "finale" | "ended";
+
 export type SprintPublicConfig = {
-  current_phase: "warmup" | "steady" | "finale";
+  sprint_start_date: string;
+  sprint_end_date: string;
+  current_phase: SprintPhase;
   quality_multiplier: number;
   endgame_bounty_active: boolean;
   collective_goal_rows: number;
   collective_stretch_rows: number;
   current_sprint_day: number;
   total_sprint_days: number;
+  sprint_has_ended: boolean;
+  accepting_submissions: boolean;
 };
 
 export type TaskerDashboardData = {
@@ -151,13 +157,17 @@ export type AdminDashboardData = {
 };
 
 const fallbackConfig: SprintPublicConfig = {
+  sprint_start_date: "2026-05-22",
+  sprint_end_date: "2026-06-05",
   current_phase: "warmup",
   quality_multiplier: 1,
   endgame_bounty_active: false,
   collective_goal_rows: 1000,
   collective_stretch_rows: 2000,
   current_sprint_day: 1,
-  total_sprint_days: 12,
+  total_sprint_days: 15,
+  sprint_has_ended: false,
+  accepting_submissions: true,
 };
 
 const fallbackMilestones = [
@@ -165,6 +175,45 @@ const fallbackMilestones = [
   { threshold_rows: 10, tier_label: "Tier 2" },
   { threshold_rows: 25, tier_label: "Tier 3" },
 ];
+
+const sprintPhases = new Set<SprintPhase>(["warmup", "steady", "finale", "ended"]);
+
+function getTodayDateOnly() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysSinceSprintStart(sprintStartDate: Date, currentDate: Date) {
+  const durationMs = currentDate.getTime() - sprintStartDate.getTime();
+  return Math.floor(durationMs / 86_400_000) + 1;
+}
+
+function normalizeSprintPublicConfig(row: Partial<SprintPublicConfig> | null | undefined): SprintPublicConfig {
+  const sprintStartDate = row?.sprint_start_date ?? fallbackConfig.sprint_start_date;
+  const sprintEndDate = row?.sprint_end_date ?? fallbackConfig.sprint_end_date;
+  const parsedStartDate = parseDateOnly(sprintStartDate, "Sprint start date");
+  const parsedEndDate = parseDateOnly(sprintEndDate, "Sprint end date");
+  const totalSprintDays = row?.total_sprint_days ?? getSprintDurationDays(parsedStartDate, parsedEndDate);
+  const rawCurrentSprintDay =
+    row?.current_sprint_day ??
+    daysSinceSprintStart(parsedStartDate, parseDateOnly(getTodayDateOnly(), "Current date"));
+  const currentSprintDay = Math.min(totalSprintDays, Math.max(1, rawCurrentSprintDay));
+  const currentPhase = sprintPhases.has(row?.current_phase as SprintPhase) ? (row?.current_phase as SprintPhase) : fallbackConfig.current_phase;
+  const sprintHasEnded = row?.sprint_has_ended ?? (currentPhase === "ended" || getTodayDateOnly() > sprintEndDate);
+
+  return {
+    sprint_start_date: sprintStartDate,
+    sprint_end_date: sprintEndDate,
+    current_phase: currentPhase,
+    quality_multiplier: Number(row?.quality_multiplier ?? fallbackConfig.quality_multiplier),
+    endgame_bounty_active: Boolean(row?.endgame_bounty_active ?? fallbackConfig.endgame_bounty_active),
+    collective_goal_rows: Number(row?.collective_goal_rows ?? fallbackConfig.collective_goal_rows),
+    collective_stretch_rows: Number(row?.collective_stretch_rows ?? fallbackConfig.collective_stretch_rows),
+    current_sprint_day: currentSprintDay,
+    total_sprint_days: totalSprintDays,
+    sprint_has_ended: sprintHasEnded,
+    accepting_submissions: row?.accepting_submissions ?? !sprintHasEnded,
+  };
+}
 
 type SupabaseServerClient = NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>;
 
@@ -391,11 +440,11 @@ export async function getSprintPublicConfig(): Promise<SprintPublicConfig> {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
-    return fallbackConfig;
+    return normalizeSprintPublicConfig(fallbackConfig);
   }
 
   const { data } = await supabase.from("sprint_public_config").select("*").maybeSingle();
-  return (data as SprintPublicConfig | null) ?? fallbackConfig;
+  return normalizeSprintPublicConfig(data as Partial<SprintPublicConfig> | null);
 }
 
 export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashboardData> {

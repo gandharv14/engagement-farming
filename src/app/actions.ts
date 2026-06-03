@@ -71,6 +71,33 @@ function isMissingColumnError(error: { message?: string; code?: string } | null 
   return error.code === "42703" || columnNames.some((columnName) => message.includes(columnName));
 }
 
+async function ensureSprintAcceptingSubmissions(supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>) {
+  const { data, error } = await supabase
+    .from("sprint_public_config")
+    .select("current_phase, sprint_end_date, sprint_has_ended, accepting_submissions")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const config = data as
+    | {
+        current_phase?: string | null;
+        sprint_end_date?: string | null;
+        sprint_has_ended?: boolean | null;
+        accepting_submissions?: boolean | null;
+      }
+    | null;
+  const today = new Date().toISOString().slice(0, 10);
+  const sprintEndedByDate = Boolean(config?.sprint_end_date && today > config.sprint_end_date);
+  const sprintClosed = config?.current_phase === "ended" || config?.sprint_has_ended === true || config?.accepting_submissions === false || sprintEndedByDate;
+
+  if (sprintClosed) {
+    throw new Error("This sprint has ended. Be back very soon.");
+  }
+}
+
 function sprintConfigRedirectUrl(params: { saved?: boolean; warnings?: string[]; error?: string }) {
   const searchParams = new URLSearchParams();
 
@@ -98,6 +125,8 @@ export async function submitRow(formData: FormData) {
   if (!supabase || !userRow) {
     throw new Error("Supabase is not configured.");
   }
+
+  await ensureSprintAcceptingSubmissions(supabase);
 
   const problemId = requiredFormString(formData, "problemId", "Problem ID");
   const taskType = requiredFormString(formData, "taskType", "Task type");
@@ -482,8 +511,8 @@ export async function updateSprintConfig(formData: FormData) {
       },
     ];
 
-    if (!["warmup", "steady", "finale"].includes(currentPhase)) {
-      throw new Error("Current phase must be warmup, steady, or finale.");
+    if (!["warmup", "steady", "finale", "ended"].includes(currentPhase)) {
+      throw new Error("Current phase must be warmup, steady, finale, or ended.");
     }
 
     const warnings: string[] = [];

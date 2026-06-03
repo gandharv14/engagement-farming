@@ -59,23 +59,48 @@ function formData(values: Record<string, string>) {
   return data;
 }
 
-function createSubmitSupabase(options: { submissionsToday?: number; countError?: Error; insertError?: Error } = {}) {
+function createSubmitSupabase(
+  options: {
+    submissionsToday?: number;
+    countError?: Error;
+    insertError?: Error;
+    sprintConfig?: Record<string, unknown> | null;
+    sprintConfigError?: Error;
+  } = {},
+) {
+  const sprintConfigMaybeSingle = vi.fn(() =>
+    Promise.resolve({
+      data:
+        options.sprintConfig === undefined
+          ? {
+              current_phase: "finale",
+              sprint_end_date: "2026-06-05",
+              sprint_has_ended: false,
+              accepting_submissions: true,
+            }
+          : options.sprintConfig,
+      error: options.sprintConfigError ?? null,
+    }),
+  );
+  const sprintConfigSelect = vi.fn(() => ({ maybeSingle: sprintConfigMaybeSingle }));
   const lt = vi.fn(() => ({ count: options.submissionsToday ?? 0, error: options.countError ?? null }));
   const gte = vi.fn(() => ({ lt }));
   const eq = vi.fn(() => ({ gte }));
   const select = vi.fn(() => ({ eq }));
   const insert = vi.fn(() => ({ error: options.insertError ?? null }));
   const table = { select, insert };
+  const tables = {
+    rows: table,
+    sprint_public_config: { select: sprintConfigSelect },
+  };
 
   return {
     supabase: {
-      from: vi.fn((tableName: string) => {
-        expect(tableName).toBe("rows");
-        return table;
-      }),
+      from: vi.fn((tableName: string) => tables[tableName as keyof typeof tables]),
     },
     table,
     query: { eq, gte, lt },
+    sprintConfigQuery: { select: sprintConfigSelect, maybeSingle: sprintConfigMaybeSingle },
   };
 }
 
@@ -263,6 +288,23 @@ describe("server actions", () => {
 
       await expect(submitRow(validSubmissionForm())).rejects.toThrow("Daily submission limit reached (4 problems).");
 
+      expect(table.insert).not.toHaveBeenCalled();
+    });
+
+    it("rejects submissions after the sprint has ended", async () => {
+      const { supabase, table } = createSubmitSupabase({
+        sprintConfig: {
+          current_phase: "ended",
+          sprint_end_date: "2026-06-05",
+          sprint_has_ended: true,
+          accepting_submissions: false,
+        },
+      });
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await expect(submitRow(validSubmissionForm())).rejects.toThrow("This sprint has ended. Be back very soon.");
+
+      expect(table.select).not.toHaveBeenCalled();
       expect(table.insert).not.toHaveBeenCalled();
     });
   });
@@ -477,6 +519,19 @@ describe("server actions", () => {
       expect(new URLSearchParams(redirectUrl.split("?")[1]).get("error")).toBe("Goodie milestone thresholds must be unique.");
       expect(configUpsert).not.toHaveBeenCalled();
       expect(milestoneUpsert).not.toHaveBeenCalled();
+    });
+
+    it("allows admins to close the sprint with the ended phase", async () => {
+      const { supabase, configUpsert } = createSprintConfigSupabase();
+      mocks.createSupabaseServerClient.mockResolvedValue(supabase);
+
+      await expect(updateSprintConfig(validSprintConfigForm({ currentPhase: "ended" }))).rejects.toThrow("NEXT_REDIRECT:/admin/config?saved=1");
+
+      expect(configUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          current_phase: "ended",
+        }),
+      );
     });
   });
 });
