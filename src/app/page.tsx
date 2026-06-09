@@ -152,7 +152,10 @@ export default async function Home() {
                   <form action={submitRow} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="space-y-2">
                       <Label htmlFor="problemId">Problem ID</Label>
-                      <Input id="problemId" name="problemId" placeholder="live-compare-**" required />
+                      <Input id="problemId" name="problemId" placeholder="live-compare-24d62543" required />
+                      <p className="text-xs text-muted-foreground">
+                        Paste the full Live Compare ID, e.g. <code>live-compare-24d62543</code>.
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="taskType">Task type</Label>

@@ -17,8 +17,13 @@ export function RealtimeRefresh({
   pollIntervalMs?: number;
 }) {
   const router = useRouter();
+  // Callers pass a fresh array literal each render, so depending on `subscriptions`
+  // directly would re-run the effect (re-fetching the token and rebuilding the
+  // realtime channel) on every render. Key the effect on its serialized contents.
+  const subscriptionsKey = JSON.stringify(subscriptions);
 
   useEffect(() => {
+    const activeSubscriptions = JSON.parse(subscriptionsKey) as Subscription[];
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     let pollTimer: ReturnType<typeof setInterval> | undefined;
@@ -27,7 +32,7 @@ export function RealtimeRefresh({
       pollTimer = setInterval(() => router.refresh(), pollIntervalMs);
     }
 
-    if (!url || !anonKey || subscriptions.length === 0) {
+    if (!url || !anonKey || activeSubscriptions.length === 0) {
       return () => {
         if (pollTimer) {
           clearInterval(pollTimer);
@@ -67,10 +72,10 @@ export function RealtimeRefresh({
 
       supabase.realtime.setAuth(token);
 
-      const channel = supabase.channel(`page-refresh-${subscriptions.map((item) => item.table).join("-")}`);
+      const channel = supabase.channel(`page-refresh-${activeSubscriptions.map((item) => item.table).join("-")}`);
       let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-      subscriptions.forEach((subscription) => {
+      activeSubscriptions.forEach((subscription) => {
         channel.on(
           "postgres_changes",
           {
@@ -109,7 +114,7 @@ export function RealtimeRefresh({
         clearInterval(pollTimer);
       }
     };
-  }, [pollIntervalMs, router, subscriptions]);
+  }, [pollIntervalMs, router, subscriptionsKey]);
 
   return null;
 }

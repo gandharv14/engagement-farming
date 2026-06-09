@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { isReviewReservationActive } from "@/lib/review-reservations";
 import { getSprintDurationDays, MAX_PROBLEMS_PER_TASKER_PER_DAY, parseDateOnly } from "@/lib/sprint-config";
 import { createSupabaseServerClient } from "@/lib/supabase";
@@ -413,7 +415,10 @@ async function getTaskerStreakContexts(supabase: SupabaseServerClient, taskerIds
   return contexts;
 }
 
-export async function getMyUserRow(auth0Sub: string): Promise<AppUserRow | null> {
+// Memoized per request: the same user row is read by requireTaskerGameContext and
+// again by each dashboard loader within one render. cache() collapses those to a
+// single query (and is a no-op outside a request scope, e.g. tests).
+export const getMyUserRow = cache(async function getMyUserRow(auth0Sub: string): Promise<AppUserRow | null> {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
@@ -434,9 +439,11 @@ export async function getMyUserRow(auth0Sub: string): Promise<AppUserRow | null>
     .maybeSingle();
 
   return (data as AppUserRow | null) ?? null;
-}
+});
 
-export async function getSprintPublicConfig(): Promise<SprintPublicConfig> {
+// Memoized per request: read by getTaskerDashboard and by page-level loaders within
+// the same render. cache() dedupes the read (no-op outside a request scope).
+export const getSprintPublicConfig = cache(async function getSprintPublicConfig(): Promise<SprintPublicConfig> {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
@@ -445,7 +452,7 @@ export async function getSprintPublicConfig(): Promise<SprintPublicConfig> {
 
   const { data } = await supabase.from("sprint_public_config").select("*").maybeSingle();
   return normalizeSprintPublicConfig(data as Partial<SprintPublicConfig> | null);
-}
+});
 
 export async function getTaskerDashboard(auth0Sub: string): Promise<TaskerDashboardData> {
   const [config, user] = await Promise.all([getSprintPublicConfig(), getMyUserRow(auth0Sub)]);
